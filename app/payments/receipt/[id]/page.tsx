@@ -233,7 +233,7 @@ export default function ReceiptPage() {
               <p className="mt-2 text-4xl font-black text-blue-600">
                 GHS{' '}
                 {
-                  receipt.totalPaid || receipt.amount || 0
+                  receipt.totalPaid || (receipt as any).amount || 0
                 }
               </p>
             </div>
