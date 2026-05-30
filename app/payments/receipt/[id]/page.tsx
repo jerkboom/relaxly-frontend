@@ -258,7 +258,7 @@ export default function ReceiptPage() {
               <p className="mt-2 break-all font-black text-slate-900">
                 {
                   receipt.paymentReference ||
-                  receipt.bookingCode ||
+                  (receipt as any).bookingCode ||
                   'N/A'
                 }
               </p>
