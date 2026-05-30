@@ -56,6 +56,8 @@ import {
   HostelSortOption,
 } from '../../src/types';
 
+import { getDashboardRoute } from '../../src/utils/navigationUtils';
+
 const AMENITIES_OPTIONS = [
   'WiFi', 'Air Conditioning', 'Study Area', 'Security', 'Private Washroom', 'Kitchen', 'Parking', 'Generator'
 ];
@@ -82,7 +84,7 @@ const SORT_OPTIONS: { id: HostelSortOption; label: string }[] = [
 function HostelsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { hasHydrated } = useAuthStore();
+  const { user, hasHydrated } = useAuthStore();
 
   // Data States
   const [hostels, setHostels] = useState<Hostel[]>([]);
@@ -413,7 +415,7 @@ function HostelsPageContent() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push(getDashboardRoute(user?.role))}
               className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 transition hover:bg-slate-100"
             >
               <FaArrowLeft />

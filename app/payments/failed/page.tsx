@@ -7,6 +7,8 @@ import { FaTimesCircle, FaRedo, FaExclamationTriangle, FaArrowLeft, FaHeadset } 
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { initializePayment } from '../../../src/services/paymentService';
+import { useAuthStore } from '../../../src/store/authStore';
+import { getDashboardRoute } from '../../../src/utils/navigationUtils';
 
 import {
   Suspense,
@@ -14,6 +16,7 @@ import {
 
 function FailedContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
   const bookingId = searchParams.get('bookingId');
   const message = searchParams.get('message') || 'Verification failed. Please try again.';
   const [retrying, setRetrying] = useState(false);
@@ -88,11 +91,11 @@ function FailedContent() {
                 )}
                 
                 <Link
-                  href="/student/bookings"
+                  href={user?.role === 'student' ? "/student/bookings" : getDashboardRoute(user?.role)}
                   className="flex items-center justify-center gap-3 rounded-2xl border-2 border-slate-100 py-5 text-lg font-black text-slate-600 transition hover:bg-slate-50"
                 >
                   <FaArrowLeft />
-                  Back to My Bookings
+                  {user?.role === 'student' ? 'Back to My Bookings' : 'Back to Dashboard'}
                 </Link>
               </div>
             </div>

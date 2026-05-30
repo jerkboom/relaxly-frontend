@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import API from '../../../src/lib/axios';
 import { getSingleHostel } from '../../../src/services/hostelService';
 import { useAuthStore } from '../../../src/store/authStore';
+import { getDashboardRoute } from '../../../src/utils/navigationUtils';
 
 interface OwnerDetails {
   _id: string;
@@ -130,7 +131,13 @@ export default function OwnerContactPage() {
       <div className="mx-auto max-w-4xl">
         {/* BACK BUTTON */}
         <button
-          onClick={() => router.back()}
+          onClick={() => {
+            if (hostelId) {
+              router.push(`/hostels/${hostelId}`);
+            } else {
+              router.push(getDashboardRoute(useAuthStore.getState().user?.role));
+            }
+          }}
           className="mb-8 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-600 shadow-sm transition hover:text-blue-600 active:scale-95"
         >
           <FaArrowLeft />

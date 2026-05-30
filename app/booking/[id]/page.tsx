@@ -382,18 +382,14 @@ export default function BookingPage() {
             <div className="flex items-center gap-4">
 
               <button
-                onClick={() =>
-                  step ===
-                  'review'
-                    ? router.back()
-                    : setStep(
-                        steps[
-                          currentStepIndex -
-                            1
-                        ]
-                          .id as Step
-                      )
-                }
+                onClick={() => {
+                  if (step === 'review') {
+                    const hostelId = typeof room?.hostel === 'object' ? room.hostel._id : room?.hostel;
+                    router.push(`/hostels/${hostelId}`);
+                  } else {
+                    setStep(steps[currentStepIndex - 1].id as Step);
+                  }
+                }}
                 className="p-3 rounded-2xl hover:bg-slate-100 transition text-slate-600"
               >
                 <FaArrowLeft />

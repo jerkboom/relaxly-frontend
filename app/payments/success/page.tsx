@@ -7,6 +7,8 @@ import { FaCheckCircle, FaReceipt, FaHome, FaArrowRight, FaCalendarCheck } from 
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { getBookingById } from '../../../src/services/bookingService';
+import { useAuthStore } from '../../../src/store/authStore';
+import { getDashboardRoute } from '../../../src/utils/navigationUtils';
 import type { PaymentStatus } from '../../../src/types';
 
 interface SuccessDetails {
@@ -31,6 +33,7 @@ const formatCurrency = (value: number) =>
 
 function SuccessContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuthStore();
   const [details, setDetails] = useState<SuccessDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -185,14 +188,14 @@ function SuccessContent() {
             {/* Actions */}
             <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2">
               <Link
-                href="/student/bookings"
+                href={user?.role === 'student' ? "/student/bookings" : getDashboardRoute(user?.role)}
                 className="flex items-center justify-center gap-4 rounded-[2rem] bg-blue-600 py-6 text-xl font-black text-white shadow-2xl shadow-blue-500/20 transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98]"
               >
                 <FaCalendarCheck />
-                My Bookings
+                {user?.role === 'student' ? 'My Bookings' : 'View Dashboard'}
               </Link>
               <Link
-                href="/student/dashboard"
+                href={getDashboardRoute(user?.role)}
                 className="flex items-center justify-center gap-4 rounded-[2rem] bg-white border-2 border-slate-100 py-6 text-xl font-black text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-200"
               >
                 <FaHome />
