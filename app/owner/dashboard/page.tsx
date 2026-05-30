@@ -17,7 +17,7 @@ import { FaExclamationCircle } from 'react-icons/fa';
 import { getOwnerDashboardStats } from '../../../src/services/hostelService';
 import toast from 'react-hot-toast';
 
-interface DashboardStats {
+interface DashboardStats { earnings?: number; 
   totalHostels: number;
   totalRooms: number;
   totalBookings: number;
