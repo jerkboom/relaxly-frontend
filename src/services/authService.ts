@@ -8,8 +8,8 @@
  * Manages user registration, login, and password recovery.
  *
  * Targets:
- * - Student Registration
- * - Owner Registration
+ * - student Registration
+ * - owner Registration
  * - Security Validation
  *
  * ==================================================
@@ -22,10 +22,10 @@ export interface RegisterData {
   email: string;
   password: string;
   gender: 'Male' | 'Female';
-  role: 'STUDENT' | 'OWNER';
-  /** Required for Owner verification. */
+  role: 'student' | 'owner';
+  /** Required for owner verification. */
   ownerAccessCode?: string;
-  /** Verification document for Owners. */
+  /** Verification document for owners. */
   governmentIdUrl?: string;
 }
 
@@ -44,7 +44,7 @@ export const registerUser =
     userData: RegisterData
   ) => {
     // SECURITY: Prevent admin registration from public API
-    const allowedRoles = ['STUDENT', 'OWNER'];
+    const allowedRoles = ['student', 'owner'];
     if (!allowedRoles.includes(userData.role)) {
       throw new Error('Unauthorized role registration attempted.');
     }

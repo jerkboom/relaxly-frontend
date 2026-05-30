@@ -27,10 +27,10 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'STUDENT' | 'OWNER' | 'ADMIN';
+  role: 'student' | 'owner' | 'admin';
   gender: 'Male' | 'Female';
   isEmailVerified: boolean;
-  verificationStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended';
   rejectionReason?: string;
 }
 

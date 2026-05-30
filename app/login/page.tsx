@@ -80,9 +80,9 @@ export default function LoginPage() {
       );
 
       // REDIRECT LOGIC
-      const userRole = String(user.role).toUpperCase();
+      const userRole = String(user.role);
 
-      if (userRole === 'ADMIN') {
+      if (userRole === 'admin') {
         router.push('/admin/dashboard');
         return;
       }
@@ -94,13 +94,13 @@ export default function LoginPage() {
       }
 
       // 2. Role-based status checks
-      if (userRole === 'OWNER') {
-        const status = String(user.verificationStatus).toUpperCase();
-        if (status === 'PENDING') {
+      if (userRole === 'owner') {
+        const status = String(user.verificationStatus);
+        if (status === 'pending') {
           router.push('/owner/pending-approval');
-        } else if (status === 'REJECTED') {
+        } else if (status === 'rejected') {
           router.push('/owner/rejected');
-        } else if (status === 'SUSPENDED') {
+        } else if (status === 'suspended') {
           router.push('/suspended');
         } else {
           router.push('/owner/dashboard');

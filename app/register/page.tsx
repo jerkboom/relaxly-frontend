@@ -79,7 +79,7 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         gender: formData.gender,
-        role: formData.role.toUpperCase() as 'STUDENT' | 'OWNER',
+        role: formData.role as 'student' | 'owner',
       };
 
       if (formData.role === 'owner') {

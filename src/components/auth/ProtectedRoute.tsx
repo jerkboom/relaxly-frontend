@@ -50,21 +50,21 @@ export default function ProtectedRoute({
       }
 
       // 2. Role-based status checks
-      const userRole = user.role.toUpperCase();
-      const status = (user.verificationStatus || '').toUpperCase();
+      const userRole = user.role;
+      const status = (user.verificationStatus || '');
 
-      if (userRole === 'OWNER') {
-        if (status === 'PENDING') {
+      if (userRole === 'owner') {
+        if (status === 'pending') {
           if (pathname !== '/owner/pending-approval') {
             router.replace('/owner/pending-approval');
           }
           return;
-        } else if (status === 'REJECTED') {
+        } else if (status === 'rejected') {
           if (pathname !== '/owner/rejected') {
             router.replace('/owner/rejected');
           }
           return;
-        } else if (status === 'SUSPENDED') {
+        } else if (status === 'suspended') {
           if (pathname !== '/suspended') {
             router.replace('/suspended');
           }
@@ -73,14 +73,14 @@ export default function ProtectedRoute({
       }
 
       // 3. Role-based permission checks
-      if (userRole === 'ADMIN') {
+      if (userRole === 'admin') {
         return;
       }
 
-      if (allowedRole && userRole !== allowedRole.toUpperCase()) {
-        if (userRole === 'OWNER') {
+      if (allowedRole && userRole !== allowedRole) {
+        if (userRole === 'owner') {
           router.replace('/owner/dashboard');
-        } else if (userRole === 'STUDENT') {
+        } else if (userRole === 'student') {
           router.replace('/student/dashboard');
         } else {
           router.replace('/');
