@@ -31,7 +31,7 @@ export default function RejectedPage() {
         <div className="bg-red-50 rounded-[2rem] p-8 mb-8 text-left border border-red-100">
           <p className="text-sm font-black uppercase tracking-widest text-red-600 mb-2">Reason for rejection:</p>
           <p className="text-lg font-medium text-slate-800 italic">
-            &quot;{user?.rejectionReason || 'Your documentation did not meet our verification standards. Please ensure all uploaded images are clear and valid.'}&quot;
+            &quot;{(null as any)?.rejectionReason || 'Your documentation did not meet our verification standards. Please ensure all uploaded images are clear and valid.'}&quot;
           </p>
         </div>
 
