@@ -514,7 +514,7 @@ function HostelsPageContent() {
                       onClick={() => handleFilterChange('page', (filters.page || 1) + 1)}
                       className="rounded-xl border-2 border-slate-100 p-4 font-black transition hover:bg-slate-50 disabled:opacity-30"
                     >
-                      <motion.div rotate={180}><FaArrowLeft className="rotate-180" /></motion.div>
+                      <FaArrowLeft className="rotate-180" />
                     </button>
                   </div>
                 )}
