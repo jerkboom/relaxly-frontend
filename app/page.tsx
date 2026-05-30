@@ -98,7 +98,7 @@ export default function HomePage() {
         // Standardize hostel list extraction
         const hostelsList = Array.isArray(hostelsData) 
           ? hostelsData 
-          : (hostelsData?.hostels || hostelsData?.data || []);
+          : (hostelsData?.hostels || (hostelsData as any)?.data || []);
 
         setHostels(Array.isArray(hostelsList) ? hostelsList : []);
         setUniversities(universityData.universities || universityData || []);
