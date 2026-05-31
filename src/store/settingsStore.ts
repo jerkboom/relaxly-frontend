@@ -61,8 +61,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         },
         isLoading: false 
       });
-    } catch (error) {
-      console.error('Failed to fetch settings:', error);
+    } catch (error: any) {
+      if (error.message === 'Network Error') {
+        console.error('CRITICAL: Network Error - Frontend cannot reach backend.');
+        console.error('Please verify your API URL in .env.local and ensure the backend is running.');
+      } else {
+        console.error('Failed to fetch settings:', error);
+      }
       set({ isLoading: false });
     }
   },

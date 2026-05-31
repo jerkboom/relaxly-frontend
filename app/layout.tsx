@@ -27,7 +27,7 @@ export default function RootLayout({
         <AuthProvider>
           <MaintenanceBanner />
           {children}
-          <SystemStatus />
+          {/* <SystemStatus /> */}
           <Toaster position="top-right" />
         </AuthProvider>
       </body>

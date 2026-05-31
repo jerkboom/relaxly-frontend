@@ -3,11 +3,15 @@ import toast from 'react-hot-toast';
 
 import { useAuthStore } from '../store/authStore';
 
-const API = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_API_URL ||
-    'http://localhost:5000/api',
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+console.log('--- API CONFIGURATION ---');
+console.log('Active Base URL:', API_URL);
+console.log('Environment:', process.env.NODE_ENV);
+console.log('------------------------');
+
+const API = axios.create({
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
