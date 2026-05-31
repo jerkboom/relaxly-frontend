@@ -229,7 +229,7 @@ export default function HostelDetailsPage() {
 
       {/* CONTENT GRID */}
       <section className="mx-auto mt-8 sm:mt-12 max-w-7xl px-4 md:px-6 lg:px-8">
-        <div className="grid gap-8 lg:gap-12 lg:grid-cols-[1fr_400px]">
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-[2fr_1.2fr]">
           
           {/* LEFT CONTENT AREA */}
           <div className="space-y-8 sm:space-y-12 min-w-0">
@@ -274,7 +274,7 @@ export default function HostelDetailsPage() {
             </div>
 
             {/* ROOMS LISTING - ANCHOR */}
-            <div id="rooms" className="rounded-[2.5rem] sm:rounded-[4rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
+            <div id="rooms" className="rounded-[2.5rem] sm:rounded-[4rem] bg-white p-6 md:p-10 shadow-sm border border-slate-100 w-full overflow-visible">
               <div className="mb-8 sm:mb-12 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-3xl sm:text-4xl font-black text-slate-900 lg:text-5xl tracking-tight">Room Comparison</h2>
@@ -286,7 +286,7 @@ export default function HostelDetailsPage() {
                 </div>
               </div>
 
-              <div className="space-y-6 sm:space-y-10">
+              <div className="space-y-6 sm:space-y-10 w-full">
                 {rooms.length === 0 ? (
                   <div className="rounded-[2rem] sm:rounded-[3rem] border-4 border-dashed border-slate-100 bg-slate-50 py-16 sm:py-24 text-center px-4">
                     <div className="mx-auto mb-6 sm:mb-8 flex h-20 w-20 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-white text-4xl sm:text-5xl text-slate-200 shadow-sm">
@@ -439,25 +439,29 @@ export default function HostelDetailsPage() {
               </AnimatePresence>
 
               {/* CONTACT OWNER CARD */}
-              <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
-                <h3 className="mb-6 sm:mb-8 text-xl sm:text-2xl font-black text-slate-900">Property Host</h3>
+              <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                <h3 className="mb-8 text-xl sm:text-2xl font-black text-slate-900 w-full text-left">Property Host</h3>
                 
-                <div className="mb-8 sm:mb-10 flex items-center gap-4 sm:gap-6">
-                  <div className="flex h-16 w-16 sm:h-24 sm:w-24 shrink-0 items-center justify-center rounded-[1.5rem] sm:rounded-[2.5rem] bg-gradient-to-br from-slate-800 to-slate-900 text-2xl sm:text-4xl font-black text-white shadow-xl">
+                <div className="mb-8 flex flex-col items-center gap-6 w-full">
+                  <div className="flex h-24 w-24 sm:h-32 sm:w-32 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-slate-900 text-3xl sm:text-5xl font-black text-white shadow-2xl ring-8 ring-slate-50">
                     {hostel.owner?.name?.charAt(0) || 'O'}
                   </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xl sm:text-2xl font-black text-slate-900 truncate">{hostel.owner?.name}</h4>
-                    <div className="mt-1 flex items-center gap-2 text-blue-600">
-                      <FaCheckCircle className="text-xs sm:text-sm shrink-0" />
-                      <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest truncate">Verified Host</span>
+                  <div className="space-y-3 w-full">
+                    <h4 className="text-2xl sm:text-3xl font-black text-slate-900 break-words whitespace-normal leading-tight">
+                      {hostel.owner?.name}
+                    </h4>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <div className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-blue-600 border border-blue-100 shadow-sm">
+                        <FaCheckCircle className="text-sm shrink-0" />
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Verified Host</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <Link
                   href={`/owners/${hostel.owner?._id}?hostel=${hostel._id}`}
-                  className="flex w-full items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-100 py-4 sm:py-6 text-base sm:text-lg font-black text-slate-900 transition-all hover:bg-slate-200 hover:scale-[1.02] active:scale-95"
+                  className="w-full flex items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 py-5 sm:py-6 text-base sm:text-lg font-black text-white transition-all hover:bg-slate-800 hover:scale-[1.02] active:scale-95 shadow-xl shadow-slate-200"
                 >
                   <FaPhone className="text-lg sm:text-xl" />
                   Contact Owner
