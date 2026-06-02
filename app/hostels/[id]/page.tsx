@@ -76,13 +76,19 @@ export default function HostelDetailsPage() {
     const fetchHostel = async () => {
       try {
         const hostelData = await getSingleHostel(id);
-        setHostel(hostelData);
-
-        const roomsData = await getHostelRooms(id);
-        setRooms(roomsData?.rooms || roomsData || []);
+        console.log('Hostel Detail Fetch:', hostelData);
+        
+        if (hostelData) {
+          setHostel(hostelData);
+          const roomsData = await getHostelRooms(id);
+          setRooms(roomsData?.rooms || roomsData || []);
+        } else {
+          setHostel(null);
+        }
       } catch (error) {
-        console.error(error);
+        console.error('Hostel details load error:', error);
         toast.error('Failed to load hostel details');
+        setHostel(null);
       } finally {
         setLoading(false);
       }
