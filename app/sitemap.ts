@@ -14,7 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://relaxlygh.com'
   
   // Use the environment variable for the API URL, falling back to the known production API if necessary
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://relaxly-api.onrender.com/api'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.relaxlygh.com/api'
 
   let hostels: any[] = []
   
@@ -64,18 +64,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/login`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/register`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
     },
   ]
 
