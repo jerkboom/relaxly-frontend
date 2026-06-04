@@ -482,6 +482,9 @@ export default function HomePage() {
               <p>About</p>
               <p>Contact</p>
               <p>Support</p>
+              <Link href="/privacy-policy" className="hover:text-white transition block">Privacy Policy</Link>
+              <Link href="/terms-and-conditions" className="hover:text-white transition block">Terms & Conditions</Link>
+              <Link href="/refund-policy" className="hover:text-white transition block">Refund Policy</Link>
             </div>
           </div>
 

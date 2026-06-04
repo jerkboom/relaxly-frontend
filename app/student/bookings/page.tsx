@@ -33,6 +33,7 @@ import {
 import { initializePayment } from '../../../src/services/paymentService';
 
 import { connectSocket } from '../../../src/lib/socket';
+import type { Socket } from 'socket.io-client';
 
 import {
   motion,
@@ -73,6 +74,7 @@ interface Booking {
   };
 
   bookingStatus: string;
+  status?: string;
 
   paymentStatus: string;
 
@@ -174,12 +176,12 @@ export default function BookingsPage() {
   useEffect(() => {
     if (!token) return;
 
-    let activeSocket: any;
+    let activeSocket: Socket | null = null;
 
     const setupSocket = async () => {
       activeSocket = await connectSocket(token);
       if (activeSocket) {
-        activeSocket.on('payment_update', (data: { bookingId: string }) => {
+        activeSocket.on('payment_update', () => {
           // Refresh the list if the current page has the updated booking
           fetchBookings();
         });
@@ -216,7 +218,7 @@ export default function BookingsPage() {
            return;
         }
 
-        if (current && (current.paymentStatus === 'expired' || (current as any).status === 'expired')) {
+        if (current && (current.paymentStatus === 'expired' || current.status === 'expired')) {
            toast.error('This reservation has expired.');
            void fetchBookings();
            return;
@@ -241,10 +243,18 @@ export default function BookingsPage() {
 
   const handleCancelClick =
     (
-      bookingId: string
+      booking: Booking
     ) => {
+      if (!canCancel(booking)) {
+        toast.error(
+          'This booking can no longer be cancelled.'
+        );
+        void fetchBookings();
+        return;
+      }
+
       setBookingToCancel(
-        bookingId
+        booking._id
       );
 
       setIsCancelModalOpen(
@@ -263,6 +273,29 @@ export default function BookingsPage() {
         setProcessingId(
           bookingToCancel
         );
+
+        const freshBookings =
+          await getMyBookings(
+            token || ''
+          );
+
+        const current =
+          freshBookings.find(
+            (booking) =>
+              booking._id ===
+              bookingToCancel
+          ) as Booking | undefined;
+
+        if (
+          !current ||
+          !canCancel(current)
+        ) {
+          toast.error(
+            'This booking can no longer be cancelled.'
+          );
+          void fetchBookings();
+          return;
+        }
 
         await cancelBooking(
           bookingToCancel
@@ -307,11 +340,34 @@ export default function BookingsPage() {
 
   const canPay = (booking: Booking) => {
     const pStatus = booking.paymentStatus.toLowerCase();
-    const bStatus = (booking as any).status?.toLowerCase() || '';
-    const bookingStatus = (booking as any).bookingStatus?.toLowerCase() || bStatus;
+    const bStatus = booking.status?.toLowerCase() || '';
+    const bookingStatus = booking.bookingStatus?.toLowerCase() || bStatus;
     
     return (pStatus === 'pending' || pStatus === 'failed') && 
            !['expired', 'cancelled', 'rejected'].includes(bookingStatus);
+  };
+
+  const canCancel = (booking: Booking) => {
+    const paymentStatus =
+      booking.paymentStatus.toLowerCase();
+    const fallbackStatus =
+      booking.status?.toLowerCase() ||
+      '';
+    const bookingStatus =
+      booking.bookingStatus?.toLowerCase() ||
+      fallbackStatus;
+
+    return (
+      !isPaid(paymentStatus) &&
+      ![
+        'approved',
+        'completed',
+        'checked-in',
+        'cancelled',
+        'expired',
+        'rejected',
+      ].includes(bookingStatus)
+    );
   };
 
   return (
@@ -588,7 +644,7 @@ export default function BookingsPage() {
                               <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-center">
                                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Status</p>
                                 <p className="text-sm font-black text-emerald-700">
-                                  {(booking as any).bookingStatus === 'approved' ? 'Confirmed' : 'Payment Verified'}
+                                  {booking.bookingStatus === 'approved' ? 'Confirmed' : 'Payment Verified'}
                                 </p>
                               </div>
                               <button
@@ -641,13 +697,13 @@ export default function BookingsPage() {
                             <FaChevronRight className="text-sm" />
                           </Link>
 
-                          {!isPaid(
-                            booking.paymentStatus
+                          {canCancel(
+                            booking
                           ) && (
                             <button
                               onClick={() =>
                                 handleCancelClick(
-                                  booking._id
+                                  booking
                                 )
                               }
                               className="mt-2 flex items-center justify-center gap-2 py-2 text-sm font-black uppercase tracking-widest text-red-500 transition-colors hover:text-red-700"

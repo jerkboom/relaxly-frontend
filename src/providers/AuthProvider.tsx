@@ -24,6 +24,7 @@ const publicRoutes = new Set([
   '/register',
   '/forgot-password',
   '/hostels',
+  '/privacy-policy',
 ]);
 
 const publicRoutePrefixes = [

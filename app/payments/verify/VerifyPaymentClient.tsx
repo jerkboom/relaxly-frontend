@@ -10,9 +10,17 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaSpinner,
+  FaClock,
 } from 'react-icons/fa';
 
 import { verifyPayment } from '../../../src/services/paymentService';
+
+type VerificationResponseWithAliases = Awaited<
+  ReturnType<typeof verifyPayment>
+> & {
+  status?: boolean | 'success' | string;
+  error?: unknown;
+};
 
 /**
  * VerifyPaymentClient Component
@@ -39,7 +47,7 @@ export default function VerifyPaymentClient() {
 
   const [status, setStatus] =
     useState<
-      'loading' | 'success' | 'failed'
+      'loading' | 'success' | 'failed' | 'pending'
     >(reference ? 'loading' : 'failed');
 
   const [message, setMessage] =
@@ -70,12 +78,17 @@ export default function VerifyPaymentClient() {
         try {
           verificationLockRef.current = true;
           const response =
-            await verifyPayment(reference);
+            (await verifyPayment(
+              reference
+            )) as VerificationResponseWithAliases;
 
           console.log('Payment Verification Response:', response);
 
           // Support both response.success and response.status (common backend variations)
-          const isVerified = response.success === true || (response as any).status === true || (response as any).status === 'success';
+          const isVerified =
+            response.success === true ||
+            response.status === true ||
+            response.status === 'success';
 
           if (
             isVerified
@@ -106,7 +119,10 @@ export default function VerifyPaymentClient() {
             const bookingId =
               response.booking?._id ||
               response.data?.booking?._id;
-            const rawErrorMsg = response.message || (response as any).error || 'Verification failed';
+            const rawErrorMsg =
+              response.message ||
+              response.error ||
+              'Verification failed';
             const errorMsg = typeof rawErrorMsg === 'string' 
               ? rawErrorMsg 
               : JSON.stringify(rawErrorMsg);
@@ -120,9 +136,25 @@ export default function VerifyPaymentClient() {
             }, 1500);
           }
         } catch (error: unknown) {
-          setStatus(
-            'failed'
-          );
+          const statusCode =
+            typeof error === 'object' &&
+            error !== null &&
+            'statusCode' in error &&
+            typeof error.statusCode === 'number'
+              ? error.statusCode
+              : undefined;
+
+          if (statusCode && statusCode >= 500) {
+            setStatus('pending');
+            setMessage(
+              'Paystack returned you to Relaxly, but our confirmation screen could not load final details. Please check My Bookings before retrying or cancelling.'
+            );
+            toast.error('Payment confirmation is still being checked');
+
+            return;
+          }
+
+          setStatus('failed');
 
           setMessage(
             error instanceof Error
@@ -130,9 +162,7 @@ export default function VerifyPaymentClient() {
               : 'Verification failed'
           );
 
-          toast.error(
-            'Verification failed'
-          );
+          toast.error('Verification failed');
         }
       };
 
@@ -171,6 +201,32 @@ export default function VerifyPaymentClient() {
             <p className="text-base sm:text-xl font-bold text-slate-500">
               Confirming your reservation...
             </p>
+          </>
+        )}
+
+        {status ===
+          'pending' && (
+          <>
+            <FaClock className="mx-auto mb-6 sm:mb-8 text-5xl sm:text-7xl text-amber-500" />
+
+            <h1 className="mb-3 sm:mb-4 text-3xl sm:text-5xl font-black text-slate-900 leading-tight">
+              Confirmation Pending
+            </h1>
+
+            <p className="mb-8 sm:mb-10 text-base sm:text-lg font-bold text-slate-500">
+              {message}
+            </p>
+
+            <button
+              onClick={() =>
+                router.push(
+                  '/student/bookings'
+                )
+              }
+              className="w-full sm:w-auto rounded-2xl bg-blue-600 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-black text-white transition hover:bg-blue-700"
+            >
+              Check My Bookings
+            </button>
           </>
         )}
 

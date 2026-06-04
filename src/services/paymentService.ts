@@ -88,8 +88,16 @@ export const verifyPayment =
 
       return response.data;
     } catch (error) {
-      throw new Error(
+      const paymentError = new Error(
         getPaymentErrorMessage(error)
       );
+
+      if (axios.isAxiosError(error)) {
+        Object.assign(paymentError, {
+          statusCode: error.response?.status,
+        });
+      }
+
+      throw paymentError;
     }
   };
