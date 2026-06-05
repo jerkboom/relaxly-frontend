@@ -41,9 +41,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   // 2. Dynamic Location Pages (Extracted from hostel data)
-  const uniqueLocations = Array.from(new Set(hostels.map((h) => h.location).filter(Boolean)))
-  const locationEntries: MetadataRoute.Sitemap = uniqueLocations.map((location) => ({
-    url: `${baseUrl}/hostels/location/${generateSlug(location)}`,
+  // Using generateSlug here ensures that normalized locations (e.g. East Logon -> east-legon)
+  // are consolidated and unique.
+  const uniqueLocationSlugs = Array.from(new Set(hostels.map((h) => generateSlug(h.location)).filter(Boolean)))
+  const locationEntries: MetadataRoute.Sitemap = uniqueLocationSlugs.map((slug) => ({
+    url: `${baseUrl}/hostels/location/${slug}`,
     lastModified: new Date(),
     changeFrequency: 'daily',
     priority: 0.7,

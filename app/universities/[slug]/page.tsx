@@ -5,7 +5,7 @@ import { getHostels } from '../../../src/services/hostelService';
 import { getUniversities } from '../../../src/services/universityService';
 import HostelCard from '../../../src/components/home/HostelCard';
 import { generateSlug } from '../../../src/utils/seoUtils';
-import { University } from '../../../src/types';
+import { University, Hostel } from '../../../src/types';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     keywords: [`hostels near ${university.name}`, `${university.name} accommodation`, "student housing Ghana"],
     alternates: {
-      canonical: `/universities/${slug}`,
+      canonical: `https://relaxlygh.com/universities/${slug}`,
     },
     openGraph: {
       title,
@@ -73,7 +73,8 @@ export default async function UniversityPage({ params }: PageProps) {
   }
 
   // Fetch hostels for this university
-  const { hostels } = await getHostels({ university: university._id, limit: 100 });
+  const response = await getHostels({ university: university._id, limit: 100 });
+  const hostels: Hostel[] = response.hostels || [];
 
   // Breadcrumb Schema
   const breadcrumbJsonLd = {
@@ -148,7 +149,7 @@ export default async function UniversityPage({ params }: PageProps) {
         {/* Listings Grid */}
         {hostels.length > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {hostels.map((hostel: any) => (
+            {hostels.map((hostel: Hostel) => (
               <HostelCard key={hostel._id} hostel={hostel} />
             ))}
           </div>

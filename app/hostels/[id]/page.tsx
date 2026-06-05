@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import HostelDetailsClient from './HostelDetailsClient';
 import { getSingleHostel, getHostelRooms, getHostels } from '../../../src/services/hostelService';
 import { extractIdFromSlug, getHostelSeoUrl } from '../../../src/utils/seoUtils';
-import { Hostel } from '../../../src/types';
+import { Hostel, Room } from '../../../src/types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,8 +25,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    const title = `${hostel.name} in ${hostel.location} | Student Accommodation | Relaxly`;
-    const description = `Book ${hostel.name} in ${hostel.location}. Verified student accommodation with WiFi, security, water and electricity. Compare rooms and reserve online.`;
+    const title = `${hostel.name} in ${hostel.location} | GHS ${hostel.price} | Relaxly`;
+    const description = `Book ${hostel.name} in ${hostel.location} for GHS ${hostel.price}. Verified student accommodation with WiFi, security, water and electricity. Compare rooms and reserve online.`;
     const image = hostel.displayImage || (hostel.images && hostel.images[0]);
     const seoUrl = getHostelSeoUrl(hostel);
 
@@ -59,6 +59,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
+interface HostelsFetchResponse {
+  hostels: Hostel[];
+  total: number;
+  currentPage: number;
+  totalPages: number;
+}
+
 /**
  * Server Component for Hostel Details Page.
  */
@@ -66,15 +73,15 @@ export default async function Page({ params }: PageProps) {
   const { id: slugId } = await params;
   const id = extractIdFromSlug(slugId);
   
-  let hostel: any = null;
-  let rooms: any[] = [];
+  let hostel: Hostel | null = null;
+  let rooms: Room[] = [];
   let relatedHostels: Hostel[] = [];
 
   try {
     const [hostelData, roomsData, allHostelsData] = await Promise.all([
       getSingleHostel(id),
       getHostelRooms(id),
-      getHostels({ limit: 100 }),
+      getHostels({ limit: 100 }) as Promise<HostelsFetchResponse>,
     ]);
     
     hostel = hostelData;
@@ -82,8 +89,9 @@ export default async function Page({ params }: PageProps) {
     
     // Simple related hostels logic: same location, excluding current hostel
     if (hostel) {
+      const currentHostelLocation = hostel.location;
       relatedHostels = (allHostelsData.hostels || [])
-        .filter((h: Hostel) => h.location === hostel.location && h._id !== id)
+        .filter((h: Hostel) => h.location === currentHostelLocation && h._id !== id)
         .slice(0, 3);
     }
   } catch (error) {
@@ -104,6 +112,7 @@ export default async function Page({ params }: PageProps) {
       'addressCountry': 'GH',
     },
     'priceRange': `GHS ${hostel.price}`,
+    'currenciesAccepted': 'GHS',
     'amenityFeature': [
       { '@type': 'LocationFeatureSpecification', 'name': 'WiFi', 'value': hostel.wifi },
       { '@type': 'LocationFeatureSpecification', 'name': 'Air Conditioning', 'value': hostel.ac },

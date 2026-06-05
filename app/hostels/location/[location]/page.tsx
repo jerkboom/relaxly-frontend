@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { FaMapMarkerAlt, FaArrowLeft, FaBed } from 'react-icons/fa';
 import { getHostels } from '../../../../src/services/hostelService';
 import HostelCard from '../../../../src/components/home/HostelCard';
-import { generateSlug } from '../../../../src/utils/seoUtils';
+import { generateSlug, normalizeLocation } from '../../../../src/utils/seoUtils';
+import { Hostel } from '../../../../src/types';
 
 interface PageProps {
   params: Promise<{ location: string }>;
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     keywords: [`hostels in ${locationName}`, `${locationName} accommodation`, "student housing Ghana"],
     alternates: {
-      canonical: `/hostels/location/${slug}`,
+      canonical: `https://relaxlygh.com/hostels/location/${slug}`,
     },
     openGraph: {
       title,
@@ -48,17 +49,18 @@ export default async function LocationPage({ params }: PageProps) {
   const { location: slug } = await params;
   
   // Extract hostels for this location
-  // Note: We fetch more to filter accurately if needed, 
-  // but the API also supports location filter.
-  const { hostels } = await getHostels({ limit: 100 });
+  const response = await getHostels({ limit: 100 });
+  const hostels: Hostel[] = response.hostels || [];
   
   // Filter hostels by slugified location to match the URL
+  // We use normalizeLocation to ensure that even if the data has 'East Logon', 
+  // it matches the 'east-legon' slug.
   const filteredHostels = hostels.filter(
-    (hostel: any) => generateSlug(hostel.location) === slug
+    (hostel: Hostel) => generateSlug(hostel.location) === slug
   );
 
   const locationName = filteredHostels.length > 0 
-    ? filteredHostels[0].location 
+    ? normalizeLocation(filteredHostels[0].location)
     : slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
   // Breadcrumb Schema
@@ -134,7 +136,7 @@ export default async function LocationPage({ params }: PageProps) {
         {/* Listings Grid */}
         {filteredHostels.length > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredHostels.map((hostel: any) => (
+            {filteredHostels.map((hostel: Hostel) => (
               <HostelCard key={hostel._id} hostel={hostel} />
             ))}
           </div>

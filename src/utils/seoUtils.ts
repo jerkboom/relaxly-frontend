@@ -1,8 +1,32 @@
 /**
+ * Normalizes location names to fix common misspellings and formatting issues.
+ * Ensures consistent SEO slugs and page titles.
+ */
+export const normalizeLocation = (location: string): string => {
+  if (!location) return '';
+  
+  const loc = location.trim().toLowerCase();
+  
+  // Mapping of common misspellings/variations to canonical names
+  const mapping: Record<string, string> = {
+    'east logon': 'East Legon',
+    'east-logon': 'East Legon',
+    'east legon': 'East Legon',
+    'madina accra': 'Madina',
+    'madina-accra': 'Madina',
+    'upsa': 'Legon',
+    'legon-accra': 'Legon',
+  };
+  
+  return mapping[loc] || location.trim();
+};
+
+/**
  * Utility to generate SEO-friendly slugs from strings.
  */
 export const generateSlug = (text: string): string => {
-  return text
+  const normalized = normalizeLocation(text);
+  return normalized
     .toString()
     .toLowerCase()
     .trim()
