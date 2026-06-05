@@ -66,8 +66,8 @@ export default async function Page({ params }: PageProps) {
   const { id: slugId } = await params;
   const id = extractIdFromSlug(slugId);
   
-  let hostel = null;
-  let rooms = [];
+  let hostel: any = null;
+  let rooms: any[] = [];
   let relatedHostels: Hostel[] = [];
 
   try {

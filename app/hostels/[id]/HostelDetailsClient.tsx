@@ -526,3 +526,6 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
     </main>
   );
 }
+
+
+function generateSlug(text: any) { if (!text) return ''; return String(text).toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''); }

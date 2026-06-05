@@ -148,7 +148,7 @@ export default async function UniversityPage({ params }: PageProps) {
         {/* Listings Grid */}
         {hostels.length > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {hostels.map((hostel) => (
+            {hostels.map((hostel: any) => (
               <HostelCard key={hostel._id} hostel={hostel} />
             ))}
           </div>

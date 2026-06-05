@@ -54,7 +54,7 @@ export default async function LocationPage({ params }: PageProps) {
   
   // Filter hostels by slugified location to match the URL
   const filteredHostels = hostels.filter(
-    (hostel) => generateSlug(hostel.location) === slug
+    (hostel: any) => generateSlug(hostel.location) === slug
   );
 
   const locationName = filteredHostels.length > 0 
@@ -134,7 +134,7 @@ export default async function LocationPage({ params }: PageProps) {
         {/* Listings Grid */}
         {filteredHostels.length > 0 ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredHostels.map((hostel) => (
+            {filteredHostels.map((hostel: any) => (
               <HostelCard key={hostel._id} hostel={hostel} />
             ))}
           </div>
