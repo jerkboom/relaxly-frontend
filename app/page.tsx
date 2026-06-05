@@ -45,6 +45,7 @@ import { getHostels } from '../src/services/hostelService';
 import { getUniversities } from '../src/services/universityService';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
+import { generateSlug } from '../src/utils/seoUtils';
 
 /** Static branding and trust features. */
 const features = [
@@ -361,7 +362,7 @@ export default function HomePage() {
           <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {universities.map(
               (university) => (
-                <Link key={university._id} href={`/hostels?university=${university.name}`}>
+                <Link key={university._id} href={`/universities/${generateSlug(university.name)}`}>
                   <UniversityCard
                     university={university}
                   />

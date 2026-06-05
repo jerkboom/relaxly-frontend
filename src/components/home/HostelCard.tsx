@@ -28,6 +28,7 @@ import {
 
 import { Hostel } from '../../types';
 import ImageGallery from '../common/ImageGallery';
+import { getHostelSeoUrl } from '../../utils/seoUtils';
 
 interface Props {
   hostel: Hostel;
@@ -36,7 +37,7 @@ interface Props {
 export default function HostelCard({
   hostel,
 }: Props) {
-  const detailHref = `/hostels/${hostel._id}`;
+  const detailHref = getHostelSeoUrl(hostel);
 
   return (
     <div className="group overflow-hidden rounded-3xl bg-white shadow-lg transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl">

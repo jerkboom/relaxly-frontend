@@ -1,57 +1,63 @@
 import { MetadataRoute } from 'next'
+import { generateSlug, getHostelSeoUrl } from '../src/utils/seoUtils'
 
 /**
- * Relaxly Sitemap Generator
- * 
- * This file generates the sitemap dynamically by fetching approved hostels
- * directly from the API. We use a standard 'fetch' here instead of the 
- * internal 'hostelService' to ensure server-side compatibility and avoid 
- * client-side dependencies like 'window', 'localStorage', or 'zustand' stores
- * which are imported by the default axios instance.
+ * Relaxly Enterprise Sitemap Generator
  */
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://relaxlygh.com'
-  
-  // Use the environment variable for the API URL, falling back to the known production API if necessary
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.relaxlygh.com/api'
 
-  let hostels: any[] = []
+  let hostels: { _id: string; name: string; location: string; updatedAt?: string }[] = []
+  let universities: { _id: string; name: string }[] = []
   
   try {
-    // Fetch hostels with a high limit to ensure all are included
-    // We use a revalidate tag to ensure the sitemap isn't stale for too long
-    const res = await fetch(`${apiUrl}/hostels?limit=100`, {
-      next: { revalidate: 3600 } // Cache for 1 hour
-    })
+    // Fetch Hostels and Universities in parallel
+    const [hostelsRes, universitiesRes] = await Promise.all([
+      fetch(`${apiUrl}/hostels?limit=100`, { next: { revalidate: 3600 } }),
+      fetch(`${apiUrl}/universities`, { next: { revalidate: 3600 } })
+    ])
 
-    if (res.ok) {
-      const json = await res.json()
-      
-      // Extraction logic mirrored from hostelService.ts to handle various API response formats
+    if (hostelsRes.ok) {
+      const json = await hostelsRes.json()
       const data = json.data || json
-      
-      if (data.hostels && Array.isArray(data.hostels)) {
-        hostels = data.hostels
-      } else if (Array.isArray(data)) {
-        hostels = data
-      } else if (data.results && Array.isArray(data.results)) {
-        hostels = data.results
-      }
+      hostels = data.hostels || data.results || (Array.isArray(data) ? data : [])
+    }
+
+    if (universitiesRes.ok) {
+      const json = await universitiesRes.json()
+      universities = json.data || json || []
     }
   } catch (error) {
-    // Fail gracefully by returning at least the static pages
     console.error('Sitemap dynamic fetch failed:', error)
   }
 
-  // Map hostels to sitemap entries
-  const hostelEntries: MetadataRoute.Sitemap = hostels.map((hostel: any) => ({
-    url: `${baseUrl}/hostels/${hostel._id}`,
+  // 1. Hostel Detail Pages (SEO-friendly slugs)
+  const hostelEntries: MetadataRoute.Sitemap = hostels.map((hostel) => ({
+    url: `${baseUrl}${getHostelSeoUrl(hostel)}`,
     lastModified: hostel.updatedAt ? new Date(hostel.updatedAt) : new Date(),
     changeFrequency: 'weekly',
     priority: 0.8,
   }))
 
+  // 2. Dynamic Location Pages (Extracted from hostel data)
+  const uniqueLocations = Array.from(new Set(hostels.map((h) => h.location).filter(Boolean)))
+  const locationEntries: MetadataRoute.Sitemap = uniqueLocations.map((location) => ({
+    url: `${baseUrl}/hostels/location/${generateSlug(location)}`,
+    lastModified: new Date(),
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }))
+
+  // 3. University Pages
+  const universityEntries: MetadataRoute.Sitemap = universities.map((uni) => ({
+    url: `${baseUrl}/universities/${generateSlug(uni.name)}`,
+    lastModified: new Date(),
+    changeFrequency: 'daily',
+    priority: 0.7,
+  }))
+
+  // 4. Static Core Pages
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -67,5 +73,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
-  return [...staticPages, ...hostelEntries]
+  return [
+    ...staticPages,
+    ...locationEntries,
+    ...universityEntries,
+    ...hostelEntries
+  ]
 }

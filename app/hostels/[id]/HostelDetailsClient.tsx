@@ -25,6 +25,7 @@ import {
   FaInfoCircle,
   FaBolt,
   FaTint,
+  FaUserFriends,
 } from 'react-icons/fa';
 
 import toast from 'react-hot-toast';
@@ -32,6 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import ImageGallery from '../../../src/components/common/ImageGallery';
 import RoomCard from '../../../src/components/common/RoomCard';
+import HostelCard from '../../../src/components/home/HostelCard';
 
 import { getSingleHostel, getHostelRooms } from '../../../src/services/hostelService';
 
@@ -46,9 +48,10 @@ interface HostelDetailsClientProps {
   id: string;
   initialHostel: Hostel | null;
   initialRooms: Room[];
+  relatedHostels?: Hostel[];
 }
 
-export default function HostelDetailsClient({ id, initialHostel, initialRooms }: HostelDetailsClientProps) {
+export default function HostelDetailsClient({ id, initialHostel, initialRooms, relatedHostels = [] }: HostelDetailsClientProps) {
   const router = useRouter();
   const { user, hasHydrated } = useAuthStore();
   const {  } = useSettingsStore();
@@ -57,16 +60,10 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms }:
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [loading, setLoading] = useState(!initialHostel);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
 
-  useEffect(() => {
-    if (selectedRoomId) {
-      const room = rooms.find(r => r._id === selectedRoomId);
-      if (room) setSelectedRoom(room);
-    } else {
-      setSelectedRoom(null);
-    }
-  }, [selectedRoomId, rooms]);
+  const selectedRoom = selectedRoomId 
+    ? rooms.find(r => r._id === selectedRoomId) || null 
+    : null;
 
   useEffect(() => {
     // If we have initial data, we don't need to fetch on mount
@@ -503,6 +500,29 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms }:
 
         </div>
       </section>
+
+      {/* RELATED HOSTELS */}
+      {relatedHostels.length > 0 && (
+        <section className="mx-auto mt-16 max-w-7xl px-4 md:px-6 lg:px-8">
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Similar Hostels Nearby</h2>
+              <p className="mt-1 text-slate-500 font-medium text-lg">More great options in {hostel.location}</p>
+            </div>
+            <Link 
+              href={`/hostels/location/${generateSlug(hostel.location)}`}
+              className="hidden sm:block text-sm font-black text-blue-600 uppercase tracking-widest hover:text-blue-700"
+            >
+              View All
+            </Link>
+          </div>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedHostels.map((item) => (
+              <HostelCard key={item._id} hostel={item} />
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
