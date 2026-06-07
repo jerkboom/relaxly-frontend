@@ -66,7 +66,7 @@ export default function RoomForm({ hostelId, initialData, isEditing = false }: R
       setFormData({
         roomType: initialData.roomType,
         occupancyStyle: initialData.occupancyStyle,
-        price: String(initialData.price),
+        price: String(initialData.basePrice || initialData.price),
         billingPeriod: initialData.billingPeriod,
         capacity: String(initialData.capacity),
         availableBeds: String(initialData.availableBeds),

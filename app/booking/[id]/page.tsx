@@ -861,20 +861,22 @@ export default function BookingPage() {
               <div className="transition-all duration-500 hover:translate-y-[-4px]">
                 <PaymentBreakdown
                   roomPrice={pendingBooking?.roomPrice || room.price}
+                  basePrice={pendingBooking?.basePrice || room.basePrice}
+                  platformAdjustment={pendingBooking?.platformAdjustment || room.adjustmentAmount}
                   bookingFee={
                     pendingBooking?.bookingFee !== undefined 
                       ? pendingBooking.bookingFee 
                       : (publicSettings?.serviceFeePercent !== undefined 
-                          ? (room.price * publicSettings.serviceFeePercent) / 100 
+                          ? ((room.totalPrice || room.price) * publicSettings.serviceFeePercent) / 100 
                           : 0)
                   }
                   serviceFeePercent={publicSettings?.serviceFeePercent}
                   totalPaid={
                     pendingBooking?.totalPaid !== undefined
                       ? pendingBooking.totalPaid
-                      : ((pendingBooking?.roomPrice || room.price) + 
+                      : ((room.totalPrice || room.price) + 
                           (publicSettings?.serviceFeePercent !== undefined 
-                            ? ((pendingBooking?.roomPrice || room.price) * publicSettings.serviceFeePercent) / 100 
+                            ? ((room.totalPrice || room.price) * publicSettings.serviceFeePercent) / 100 
                             : 0))
                   }
                   loading={loading || (checkoutState === 'processing' && step === 'review')}

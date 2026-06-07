@@ -72,6 +72,12 @@ export interface Room {
   /** Base price before platform adjustments. */
   price: number;
 
+  basePrice?: number;
+
+  adjustmentAmount?: number;
+
+  totalPrice?: number;
+
   capacity: number;
 
   availableBeds: number;
@@ -171,6 +177,12 @@ export interface Booking {
 
   /** @deprecated Use totalPaid instead for final amount. */
   amount?: number;
+
+  basePrice: number;
+
+  platformAdjustment: number;
+
+  displayPrice: number;
 
   roomPrice: number;
 

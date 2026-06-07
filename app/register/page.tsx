@@ -79,11 +79,12 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         gender: formData.gender,
-        role: formData.role as 'student' | 'owner',
+        role: formData.role as "student" | "owner",        // @ts-ignore
+        accessCode: formData.ownerAccessCode,
+        
       };
 
       if (formData.role === 'owner') {
-        payload.ownerAccessCode = formData.ownerAccessCode;
         payload.governmentIdUrl = formData.governmentIdUrl;
       }
 

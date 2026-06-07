@@ -60,10 +60,60 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [loading, setLoading] = useState(!initialHostel);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [isHighlighting, setIsHighlighting] = useState(false);
 
   const selectedRoom = selectedRoomId 
     ? rooms.find(r => r._id === selectedRoomId) || null 
     : null;
+
+  // Calculate fees using backend provided fields
+  const totalPrice = selectedRoom ? (selectedRoom.totalPrice || selectedRoom.price) : 0;
+
+  useEffect(() => {
+    if (selectedRoomId) {
+      setIsHighlighting(true);
+      const timer = setTimeout(() => setIsHighlighting(false), 2000);
+      
+      // On mobile, we might want to scroll to the selection info if needed, 
+      // but the bottom bar handles most of it.
+      // On desktop, the sticky card is already visible.
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedRoomId]);
+
+  const handleReserve = () => {
+    if (!selectedRoomId) {
+      const roomsSection = document.getElementById('rooms');
+      if (roomsSection) {
+        roomsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      toast.error('Please select a room first');
+      return;
+    }
+
+    if (!user) {
+      router.push('/register');
+      return;
+    }
+    router.push(`/booking/${selectedRoomId}`);
+  };
+
+  useEffect(() => {
+    const handleReservationTrigger = (e: any) => {
+      const { roomId } = e.detail;
+      if (roomId) {
+        if (!user) {
+          router.push('/register');
+          return;
+        }
+        router.push(`/booking/${roomId}`);
+      }
+    };
+
+    window.addEventListener('trigger-reservation', handleReservationTrigger);
+    return () => window.removeEventListener('trigger-reservation', handleReservationTrigger);
+  }, [user, router]);
 
   useEffect(() => {
     // If we have initial data, we don't need to fetch on mount
@@ -362,89 +412,9 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR - STICKY BOOKING */}
+          {/* RIGHT SIDEBAR - STATS & CONTACT */}
           <aside className="lg:block">
             <div className="sticky top-12 space-y-6 sm:space-y-8">
-              <AnimatePresence mode="wait">
-                {selectedRoom ? (
-                  <motion.div
-                    key="booking-card"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="overflow-hidden rounded-[2.5rem] sm:rounded-[3.5rem] bg-white shadow-2xl ring-4 sm:ring-8 ring-blue-600/10 border border-blue-600"
-                  >
-                    <div className="bg-blue-600 p-8 sm:p-10 text-white">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-2xl sm:text-3xl font-black tracking-tight">Book Room</h3>
-                          <p className="mt-1 font-bold opacity-80 uppercase text-[9px] sm:text-[10px] tracking-widest">Secure Reservation</p>
-                        </div>
-                        <div className="rounded-xl sm:rounded-2xl bg-white/20 p-2 sm:p-3 backdrop-blur-md">
-                          <FaCheckCircle className="text-xl sm:text-2xl" />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-8 sm:p-10">
-                      <div className="mb-8 sm:mb-10 space-y-4 sm:space-y-6">
-                        <div className="flex items-center justify-between border-b border-slate-50 pb-3 sm:pb-4">
-                          <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Room Type</span>
-                          <span className="text-sm sm:text-base font-black text-slate-900">{selectedRoom.roomType}</span>
-                        </div>
-                        <div className="flex items-center justify-between border-b border-slate-50 pb-3 sm:pb-4">
-                          <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Billing</span>
-                          <span className="text-sm sm:text-base font-black text-slate-900 capitalize tracking-tight">{selectedRoom.billingPeriod}</span>
-                        </div>
-                        <div className="pt-2">
-                          <span className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">Room Price</span>
-                          <div className="mt-1 sm:mt-2 flex items-baseline gap-2">
-                            <span className="text-4xl sm:text-5xl font-black text-blue-600">GHS {selectedRoom.price}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          if (!user) {
-                            router.push('/register');
-                            return;
-                          }
-                          router.push(`/booking/${selectedRoom._id}`);
-                        }}
-                        className="flex w-full items-center justify-center gap-3 rounded-[1.5rem] sm:rounded-[2.5rem] bg-blue-600 py-4 sm:py-6 text-lg sm:text-xl font-black text-white shadow-xl shadow-blue-500/40 transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-95"
-                      >
-                        Reserve Now
-                      </button>
-                      <button 
-                        onClick={() => setSelectedRoomId(null)}
-                        className="mt-4 sm:mt-6 w-full text-[10px] sm:text-sm font-black text-slate-300 transition hover:text-red-500 uppercase tracking-widest"
-                      >
-                        Cancel Selection
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty-sidebar"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-slate-900 p-8 sm:p-12 text-white shadow-2xl"
-                  >
-                    <div className="mb-6 sm:mb-8 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-[1.5rem] sm:rounded-[2rem] bg-white/10 text-3xl sm:text-4xl">
-                      <FaBed />
-                    </div>
-                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight">Ready to Secure Your Spot?</h3>
-                    <p className="mt-4 sm:mt-6 text-base sm:text-lg font-medium text-slate-400 leading-relaxed">
-                      Explore the available room types and select one to proceed with your booking instantly.
-                    </p>
-                    <a href="#rooms" className="mt-8 sm:mt-10 flex items-center justify-center gap-3 rounded-[1.5rem] sm:rounded-[2rem] bg-blue-600 py-4 sm:py-5 font-black text-white transition-all hover:bg-blue-700 hover:scale-105">
-                      Explore Rooms
-                    </a>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
               {/* CONTACT OWNER CARD */}
               <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100 flex flex-col items-center text-center">
                 <h3 className="mb-8 text-xl sm:text-2xl font-black text-slate-900 w-full text-left">Property Host</h3>
@@ -523,6 +493,36 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
           </div>
         </section>
       )}
+
+      {/* MOBILE BOTTOM ACTION BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-6 pt-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_40px_rgba(0,0,0,0.08)]">
+        <div className="mx-auto max-w-md flex items-center justify-between gap-4">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
+              {selectedRoom ? selectedRoom.roomType : 'Select a Variant'}
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-blue-600">
+                GHS {selectedRoom ? selectedRoom.price : (rooms.length > 0 ? Math.min(...rooms.map(r => r.price)) : 'N/A')}
+              </span>
+              <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                / {selectedRoom?.billingPeriod || 'Year'}
+              </span>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleReserve}
+            className={`flex-1 max-w-[180px] rounded-2xl py-4 text-center text-sm font-black text-white shadow-xl transition-all active:scale-95 ${
+              selectedRoom 
+                ? 'bg-blue-600 shadow-blue-500/30' 
+                : 'bg-slate-900 shadow-slate-900/20'
+            }`}
+          >
+            {selectedRoom ? 'Reserve Now' : 'Choose Room'}
+          </button>
+        </div>
+      </div>
     </main>
   );
 }

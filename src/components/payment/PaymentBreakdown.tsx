@@ -3,6 +3,8 @@ import { FaShieldAlt } from 'react-icons/fa';
 
 interface PaymentBreakdownProps {
   roomPrice?: number;
+  basePrice?: number;
+  platformAdjustment?: number;
   bookingFee?: number;
   serviceFeePercent?: number;
   totalPaid?: number;
@@ -19,6 +21,8 @@ interface PaymentBreakdownProps {
  */
 const PaymentBreakdown: React.FC<PaymentBreakdownProps> = ({
   roomPrice,
+  basePrice,
+  platformAdjustment,
   bookingFee,
   serviceFeePercent,
   totalPaid,
@@ -45,8 +49,11 @@ const PaymentBreakdown: React.FC<PaymentBreakdownProps> = ({
     );
   }
 
+  const actualBasePrice = basePrice || (roomPrice && platformAdjustment !== undefined ? roomPrice - platformAdjustment : roomPrice);
+  const actualAdjustment = platformAdjustment || 0;
+
   if (
-    roomPrice === undefined ||
+    actualBasePrice === undefined ||
     bookingFee === undefined ||
     totalPaid === undefined
   ) {
@@ -75,16 +82,16 @@ const PaymentBreakdown: React.FC<PaymentBreakdownProps> = ({
 
       <div className="px-8 pb-8 pt-0 sm:px-10 sm:pb-10">
         <div className="space-y-6">
-          {/* Room Price */}
+          {/* Room Price (Simplified) */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-5 transition-colors group-hover:border-blue-100">
             <div className="flex flex-col">
               <span className="text-sm font-bold text-slate-600">
-                Base Room Rate
+                Room Price
               </span>
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Standard pricing applied</span>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Inclusive of all taxes</span>
             </div>
             <span className="text-xl font-black text-slate-900">
-              {formatter.format(roomPrice)}
+              {formatter.format(roomPrice || 0)}
             </span>
           </div>
 
