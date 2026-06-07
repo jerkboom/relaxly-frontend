@@ -120,7 +120,28 @@ export default function RoomCard({ room, isSelected, onSelect }: RoomCardProps) 
                 <p className="flex items-center gap-2 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 sm:mb-2">
                   <FaBed className="text-blue-600" /> Availability
                 </p>
-                <p className="text-base sm:text-lg font-black text-slate-900 truncate">{room.availableBeds} <span className="text-xs text-slate-400">/ {room.capacity}</span></p>
+                {room.genderAllocation === 'Mixed' ? (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-700">
+                      <span className="flex items-center gap-1"><FaFemale className="text-pink-500" /> ♀</span>
+                      <span className={room.femaleAvailableBeds && room.femaleAvailableBeds > 0 ? 'text-emerald-600 font-black' : 'text-slate-400'}>
+                        {room.femaleAvailableBeds || 0} left
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-700">
+                      <span className="flex items-center gap-1"><FaMale className="text-blue-500" /> ♂</span>
+                      <span className={room.maleAvailableBeds && room.maleAvailableBeds > 0 ? 'text-blue-600 font-black' : 'text-slate-400'}>
+                        {room.maleAvailableBeds || 0} left
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-base sm:text-lg font-black text-slate-900 truncate">
+                    {room.availableBeds} <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
+                      {room.genderAllocation === 'Female' ? '♀ Left' : '♂ Left'}
+                    </span>
+                  </p>
+                )}
               </div>
               <div className="hidden sm:block rounded-xl sm:rounded-2xl bg-slate-50 p-3 sm:p-4 border border-slate-100/50">
                 <p className="flex items-center gap-2 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 sm:mb-2">
