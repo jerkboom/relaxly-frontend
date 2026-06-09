@@ -45,7 +45,12 @@ import {
   FaVenus,
   FaTransgender,
   FaRegCalendarAlt,
-  FaUserGraduate
+  FaUserGraduate,
+  FaPhone,
+  FaIdCard,
+  FaUniversity,
+  FaEnvelope,
+  FaInfoCircle
 } from 'react-icons/fa';
 import { getOwnerBookings, updateBookingStatus, checkInStudent } from '../../../src/services/bookingService';
 import toast from 'react-hot-toast';
@@ -59,6 +64,12 @@ interface Booking {
     _id: string;
     name: string;
     email: string;
+    phone?: string;
+    studentId?: string;
+    university?: {
+      _id: string;
+      name: string;
+    };
     gender?: 'Male' | 'Female';
   };
   hostel: {
@@ -91,6 +102,151 @@ interface Booking {
 }
 
 // --- COMPONENTS ---
+
+/**
+ * Detailed modal for student and booking information.
+ */
+const BookingModal = ({ booking, onClose, onCheckIn, processingId }: { 
+  booking: Booking, 
+  onClose: () => void, 
+  onCheckIn: (id: string) => void,
+  processingId: string | null
+}) => (
+  <motion.div 
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+    onClick={onClose}
+  >
+    <motion.div 
+      initial={{ scale: 0.9, opacity: 0, y: 20 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={{ scale: 0.9, opacity: 0, y: 20 }}
+      className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-[2rem] sm:rounded-[3rem] bg-white shadow-2xl relative scrollbar-hide"
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="sticky top-0 z-10 h-32 bg-slate-900">
+        <div className="absolute -bottom-10 left-10 flex items-end gap-6">
+          <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white p-1.5 shadow-xl">
+            <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-3xl font-black text-white">
+              {booking.student?.name?.charAt(0)}
+            </div>
+          </div>
+          <div className="mb-2 pb-2">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">{booking.student?.name}</h2>
+            <StatusBadge type="booking" value={booking.bookingStatus} />
+          </div>
+        </div>
+        <button 
+          onClick={onClose}
+          className="absolute right-6 top-6 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
+        >
+          <FaTimesCircle />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-10 pt-16">
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Student Verification</h3>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 group">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 group-hover:bg-blue-50 transition">
+                  <FaEnvelope className="text-slate-400 group-hover:text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Email Address</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.student?.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 group">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 group-hover:bg-emerald-50 transition">
+                  <FaPhone className="text-slate-400 group-hover:text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Phone Number</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.student?.phone || 'Not Provided'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 group">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 group-hover:bg-purple-50 transition">
+                  <FaIdCard className="text-slate-400 group-hover:text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Student ID Number</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.student?.studentId || 'Not Provided'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 group">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 group-hover:bg-amber-50 transition">
+                  <FaUniversity className="text-slate-400 group-hover:text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">University / Institution</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.student?.university?.name || 'Not Assigned'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Booking Details</h3>
+            <div className="rounded-3xl bg-slate-50 p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-500">Booking Code</span>
+                <span className="text-xs font-black text-blue-600 font-mono bg-blue-50 px-2 py-0.5 rounded">{booking.bookingCode}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-500">Hostel</span>
+                <span className="text-xs font-black text-slate-900">{booking.hostel?.name}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-500">Room</span>
+                <span className="text-xs font-black text-slate-900">{booking.room?.roomType}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                <span className="text-xs font-bold text-slate-500">Amount Paid</span>
+                <span className="text-sm font-black text-slate-900">GHS {booking.amount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-500">Booking Date</span>
+                <span className="text-xs font-bold text-slate-700">{new Date(booking.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-100">
+            <FaInfoCircle className="text-blue-500 shrink-0" />
+            <p className="text-[10px] font-bold text-blue-700 leading-relaxed">
+              Verify student identity by matching their physical Student ID card with the information provided above during check-in.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-slate-50 p-6 flex justify-end gap-3">
+        <button 
+          onClick={onClose}
+          className="px-6 py-3 text-xs font-black text-slate-500 hover:text-slate-900 transition"
+        >
+          Close Window
+        </button>
+        {(booking.bookingStatus === 'approved' && booking.paymentStatus === 'paid' && !booking.checkedIn) && (
+          <button 
+            disabled={processingId !== null}
+            onClick={() => { onCheckIn(booking._id); onClose(); }}
+            className="px-8 py-3 rounded-xl bg-blue-600 text-xs font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2"
+          >
+            {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <><FaUserGraduate /> Proceed to Check In</>}
+          </button>
+        )}
+      </div>
+    </motion.div>
+  </motion.div>
+);
 
 /**
  * Renders a stylized badge based on entity state.
@@ -206,6 +362,7 @@ export default function OwnerBookings() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   
   // Filter States
   const [filters, setFilters] = useState({
@@ -455,10 +612,38 @@ export default function OwnerBookings() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight truncate mb-1">{booking.student?.name}</h4>
-                      <p className="text-xs font-bold text-slate-400 truncate mb-3">{booking.student?.email}</p>
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-1 mb-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 truncate">
+                          <FaEnvelope className="shrink-0 text-[10px]" />
+                          <span className="truncate">{booking.student?.email}</span>
+                        </div>
+                        {booking.student?.phone && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600 truncate">
+                            <FaPhone className="shrink-0 text-[10px] text-emerald-500" />
+                            <span className="truncate">{booking.student?.phone}</span>
+                          </div>
+                        )}
+                        {booking.student?.studentId && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600 truncate">
+                            <FaIdCard className="shrink-0 text-[10px] text-blue-500" />
+                            <span className="truncate">ID: {booking.student?.studentId}</span>
+                          </div>
+                        )}
+                        {booking.student?.university?.name && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-slate-600 truncate">
+                            <FaUniversity className="shrink-0 text-[10px] text-amber-500" />
+                            <span className="truncate">{booking.student?.university?.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
                         <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded w-fit">Code: {booking.bookingCode || 'N/A'}</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded w-fit break-all max-w-full">Ref: {booking.paymentReference || 'N/A'}</span>
+                        <button 
+                          onClick={() => setSelectedBooking(booking)}
+                          className="text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded hover:bg-slate-100 transition flex items-center gap-1"
+                        >
+                          <FaInfoCircle className="text-[8px]" /> Details
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -572,6 +757,18 @@ export default function OwnerBookings() {
           </div>
         </div>
       )}
+
+      {/* MODAL OVERLAY */}
+      <AnimatePresence>
+        {selectedBooking && (
+          <BookingModal 
+            booking={selectedBooking} 
+            onClose={() => setSelectedBooking(null)} 
+            onCheckIn={handleCheckIn}
+            processingId={processingId}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

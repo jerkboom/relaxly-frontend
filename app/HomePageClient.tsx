@@ -26,6 +26,7 @@ import UniversityCard from '../src/components/home/UniversityCard';
 import { Hostel, University } from '../src/types';
 import { getHostels } from '../src/services/hostelService';
 import { getUniversities } from '../src/services/universityService';
+import { getPublicStats } from '../src/services/settingsService';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { generateSlug } from '../src/utils/seoUtils';
 
@@ -60,6 +61,12 @@ interface HostelsResponse {
   } | Hostel[];
 }
 
+interface PlatformStats {
+  universities: number;
+  hostels: number;
+  students: number;
+}
+
 export default function HomePageClient() {
   const router = useRouter();
   const { supportSettings } = useSettingsStore();
@@ -67,6 +74,19 @@ export default function HomePageClient() {
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+
+  /** Sticky Header Logic: Track scroll for shadow effect */
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   /** Search input states for the landing page widget. */
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,8 +100,11 @@ export default function HomePageClient() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const hostelsData = await getHostels() as unknown as HostelsResponse;
-        const universityData = await getUniversities();
+        const [hostelsData, universityData, statsData] = await Promise.all([
+          getHostels() as unknown as HostelsResponse,
+          getUniversities(),
+          getPublicStats().catch(() => null) // Fail silently and fallback to null
+        ]);
 
         // Standardize hostel list extraction
         let hostelsList: Hostel[] = [];
@@ -99,6 +122,7 @@ export default function HomePageClient() {
 
         setHostels(hostelsList);
         setUniversities(universityData.universities || universityData || []);
+        if (statsData) setStats(statsData);
       } catch (error) {
         console.error('Homepage data fetch error:', error);
         setHostels([]);
@@ -122,11 +146,21 @@ export default function HomePageClient() {
     router.push(`/hostels?${params.toString()}`);
   };
 
+  /** Formats large numbers for display (e.g. 1500 -> 1.5k) */
+  const formatStat = (num: number | undefined) => {
+    if (num === undefined || num === null) return '--';
+    if (num < 1000) return num.toString();
+    return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  };
+
+
   return (
     <main className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
       {/* NAVBAR */}
-      <header className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-4">
+      <header className={`fixed top-0 left-0 right-0 z-[1000] border-b bg-white/90 backdrop-blur transition-all duration-300 ${
+        isScrolled ? 'py-3 shadow-lg shadow-slate-200/50' : 'py-4 sm:py-5 shadow-none'
+      }`}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-blue-600">
             <img src="/logo.svg" alt="Relaxly Logo" className="h-8 w-8" />
             <span>Relaxly</span>
@@ -162,7 +196,7 @@ export default function HomePageClient() {
       </header>
 
       {/* HERO SECTION - Landing impact and quick discovery */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white pt-[72px] sm:pt-[88px]">
         <div className="absolute inset-0 bg-black/20" />
 
         <div className="relative mx-auto grid max-w-7xl gap-10 lg:gap-16 px-4 sm:px-6 py-12 sm:py-24 md:grid-cols-2 md:items-center">
@@ -324,49 +358,36 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      {/* UNIVERSITIES DIRECTORY */}
-      <section
-        id="universities"
-        className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-24"
-      >
-        <div className="mb-10 sm:mb-16 text-center">
-          <p className="mb-2 sm:mb-3 font-semibold text-blue-600 text-sm sm:text-base">
-            UNIVERSITIES
-          </p>
-
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black">
-            Supported Universities
-          </h2>
+      {/* PLATFORM STATISTICS / SOCIAL PROOF */}
+      <section className="bg-blue-50 py-12 sm:py-16 border-y border-blue-100/50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center divide-y sm:divide-y-0 sm:divide-x divide-blue-200/50">
+            <div className="flex flex-col items-center justify-center p-4">
+              {loading ? (
+                <div className="h-10 w-24 sm:h-12 sm:w-28 animate-pulse rounded-xl bg-blue-200/50 mb-2" />
+              ) : (
+                <span className="text-4xl sm:text-5xl font-black text-blue-600 mb-2">{formatStat(stats?.universities)}</span>
+              )}
+              <span className="text-sm sm:text-base font-bold text-slate-600 uppercase tracking-widest">Supported Universities</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-4">
+              {loading ? (
+                <div className="h-10 w-24 sm:h-12 sm:w-28 animate-pulse rounded-xl bg-blue-200/50 mb-2" />
+              ) : (
+                <span className="text-4xl sm:text-5xl font-black text-blue-600 mb-2">{formatStat(stats?.hostels)}</span>
+              )}
+              <span className="text-sm sm:text-base font-bold text-slate-600 uppercase tracking-widest">Verified Hostels</span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-4">
+              {loading ? (
+                <div className="h-10 w-24 sm:h-12 sm:w-28 animate-pulse rounded-xl bg-blue-200/50 mb-2" />
+              ) : (
+                <span className="text-4xl sm:text-5xl font-black text-blue-600 mb-2">{formatStat(stats?.students)}</span>
+              )}
+              <span className="text-sm sm:text-base font-bold text-slate-600 uppercase tracking-widest">Students Hosted</span>
+            </div>
+          </div>
         </div>
-
-        {loading ? (
-          <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {[1, 2, 3, 4].map((item) => (
-              <div
-                key={item}
-                className="h-[180px] sm:h-[220px] animate-pulse rounded-3xl bg-gray-200"
-              />
-            ))}
-          </div>
-        ) : universities.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 sm:p-12 text-center shadow">
-            <h3 className="mb-3 text-xl sm:text-2xl font-bold">
-              No universities available
-            </h3>
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {universities.map(
-              (university) => (
-                <Link key={university._id} href={`/universities/${generateSlug(university.name)}`}>
-                  <UniversityCard
-                    university={university}
-                  />
-                </Link>
-              )
-            )}
-          </div>
-        )}
       </section>
 
       {/* TRUST FEATURES - Value proposition cards */}

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,8 @@ import {
   FaHistory,
   FaInfoCircle,
   FaBars,
+  FaFilter,
+  FaTimes,
 } from 'react-icons/fa';
 
 import { useNav } from '../layout';
@@ -122,6 +125,10 @@ export default function BookingsPage() {
   const { openSidebar } = useNav();
   const { token } =
     useAuthStore();
+  const searchParams = useSearchParams();
+  
+  const statusFilter = searchParams.get('status');
+  const paymentFilter = searchParams.get('payment');
 
   const [bookings, setBookings] =
     useState<Booking[]>([]);
@@ -144,6 +151,17 @@ export default function BookingsPage() {
     null
   );
 
+  const isPaid = (
+    status: string
+  ) =>
+    [
+      'paid',
+      'success',
+      'completed',
+    ].includes(
+      status.toLowerCase()
+    );
+
   const fetchBookings =
     useCallback(async () => {
       try {
@@ -163,6 +181,25 @@ export default function BookingsPage() {
         setLoading(false);
       }
     }, [token]);
+
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      const pStatus = booking.paymentStatus.toLowerCase();
+      const bStatus = booking.status?.toLowerCase() || '';
+      const bookingStatus = booking.bookingStatus?.toLowerCase() || bStatus;
+
+      if (statusFilter === 'active') {
+        return bookingStatus === 'approved';
+      }
+      if (statusFilter === 'pending') {
+        return bookingStatus === 'pending';
+      }
+      if (paymentFilter === 'true') {
+        return isPaid(pStatus);
+      }
+      return true;
+    });
+  }, [bookings, statusFilter, paymentFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -327,17 +364,6 @@ export default function BookingsPage() {
       }
     };
 
-  const isPaid = (
-    status: string
-  ) =>
-    [
-      'paid',
-      'success',
-      'completed',
-    ].includes(
-      status.toLowerCase()
-    );
-
   const canPay = (booking: Booking) => {
     const pStatus = booking.paymentStatus.toLowerCase();
     const bStatus = booking.status?.toLowerCase() || '';
@@ -418,7 +444,7 @@ export default function BookingsPage() {
                 )
               )}
             </div>
-          ) : bookings.length ===
+          ) : filteredBookings.length ===
             0 ? (
             <motion.div
               initial={{
@@ -432,36 +458,52 @@ export default function BookingsPage() {
               className="rounded-[3.5rem] border border-slate-100 bg-white p-20 text-center shadow-sm"
             >
               <div className="mx-auto mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-blue-50 text-5xl text-blue-600">
-                <FaHome />
+                {statusFilter || paymentFilter ? <FaFilter /> : <FaHome />}
               </div>
 
               <h2 className="mb-4 text-4xl font-black text-slate-900">
-                No Bookings Found
+                {statusFilter || paymentFilter ? 'No Results Found' : 'No Bookings Found'}
               </h2>
 
               <p className="mx-auto mb-10 max-w-md text-lg font-medium text-slate-500">
-                You haven&apos;t made
-                any bookings yet.
+                {statusFilter || paymentFilter 
+                  ? 'We couldn\'t find any bookings matching your current filter.' 
+                  : 'You haven\'t made any bookings yet.'}
               </p>
 
               <Link
-                href="/hostels"
+                href={statusFilter || paymentFilter ? "/student/bookings" : "/hostels"}
                 className="inline-block rounded-3xl bg-blue-600 px-10 py-5 font-black text-white shadow-xl shadow-blue-500/30 transition hover:scale-105"
               >
-                Browse Hostels
+                {statusFilter || paymentFilter ? 'Clear Filters' : 'Browse Hostels'}
               </Link>
             </motion.div>
           ) : (
             <div className="grid gap-10">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-3 text-xl font-black uppercase tracking-tight text-slate-900">
-                  <FaHistory className="text-blue-600" />
-                  Booking History
-                </h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="flex items-center gap-3 text-xl font-black uppercase tracking-tight text-slate-900">
+                    <FaHistory className="text-blue-600" />
+                    {statusFilter === 'active' ? 'Active Stays' : 
+                     statusFilter === 'pending' ? 'Pending Requests' :
+                     paymentFilter === 'true' ? 'Payment History' :
+                     'Booking History'}
+                  </h2>
+                  
+                  {(statusFilter || paymentFilter) && (
+                    <Link 
+                      href="/student/bookings"
+                      className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 transition hover:bg-slate-200"
+                    >
+                      <FaTimes />
+                      Clear Filter
+                    </Link>
+                  )}
+                </div>
               </div>
 
               <AnimatePresence>
-                {bookings.map(
+                {filteredBookings.map(
                   (
                     booking,
                     idx

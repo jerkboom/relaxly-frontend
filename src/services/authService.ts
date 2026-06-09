@@ -22,11 +22,15 @@ export interface RegisterData {
   email: string;
   password: string;
   gender: 'Male' | 'Female';
+  phone: string;
   role: 'student' | 'owner';
   /** Required for owner verification. */
-  ownerAccessCode?: string;
+  accessCode?: string;
   /** Verification document for owners. */
   governmentIdUrl?: string;
+  university?: string;
+  customUniversity?: string;
+  studentId?: string;
 }
 
 interface LoginData {

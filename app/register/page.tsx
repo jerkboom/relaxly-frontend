@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import Link from 'next/link';
 
@@ -18,9 +18,11 @@ import {
   FaKey,
   FaVenusMars,
   FaLink,
+  FaPhone,
 } from 'react-icons/fa';
 
 import { registerUser, RegisterData } from '../../src/services/authService';
+import { getUniversities } from '../../src/services/universityService';
 import { useAuthStore } from '../../src/store/authStore';
 import { getErrorMessage } from '../../src/utils/errorUtils';
 
@@ -30,16 +32,32 @@ export default function RegisterPage() {
   const [loading, setLoading] =
     useState(false);
 
+  const [universities, setUniversities] = useState<any[]>([]);
+  const [showUniDropdown, setShowUniDropdown] = useState(false);
+  const [uniSearch, setUniSearch] = useState('');
+
+  useEffect(() => {
+    getUniversities().then((res) => {
+      const sorted = (res.data || res).sort((a: any, b: any) => a.name.localeCompare(b.name));
+      setUniversities(sorted);
+    }).catch(console.error);
+  }, []);
+
   const [formData, setFormData] =
     useState({
+
       name: '',
       email: '',
       password: '',
       confirmPassword: '',
       gender: 'Male' as 'Male' | 'Female',
+      phone: '',
       role: 'student' as 'student' | 'owner',
       ownerAccessCode: '',
       governmentIdUrl: '',
+      university: '',
+      customUniversity: '',
+      studentId: '',
     });
 
   const handleChange = (
@@ -71,6 +89,16 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!/^(?:\+233|0)[2-5]\d{8}$/.test(formData.phone)) {
+      toast.error('Please enter a valid Ghana phone number (e.g. 0241234567).');
+      return;
+    }
+
+    if (formData.role === 'student' && formData.university === 'other' && !formData.customUniversity.trim()) {
+      toast.error('Please enter your university name.');
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -79,9 +107,12 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
         gender: formData.gender,
+        phone: formData.phone,
         role: formData.role as "student" | "owner",        // @ts-ignore
         accessCode: formData.ownerAccessCode,
-        
+        university: formData.role === 'student' && formData.university !== 'other' ? formData.university : undefined,
+        customUniversity: formData.role === 'student' && formData.university === 'other' ? formData.customUniversity : undefined,
+        studentId: formData.role === 'student' ? formData.studentId : undefined,
       };
 
       if (formData.role === 'owner') {
@@ -233,6 +264,109 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          {/* DYNAMIC FIELDS: STUDENT */}
+          {formData.role === 'student' && (
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+              <div className="relative">
+                <label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold text-gray-700">
+                  University / Institution
+                </label>
+
+                <div className="flex flex-col relative rounded-2xl border border-gray-200 bg-gray-50 transition focus-within:border-blue-500 focus-within:bg-white">
+                  <div className="flex items-center px-4 sm:px-5">
+                    <FaUniversity className="text-gray-400 shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search your university..."
+                      value={showUniDropdown ? uniSearch : (formData.university === 'other' ? 'Other (My University Is Not Listed)' : universities.find(u => u._id === formData.university)?.name || '')}
+                      onChange={(e) => {
+                        setUniSearch(e.target.value);
+                        setShowUniDropdown(true);
+                      }}
+                      onFocus={() => {
+                        setUniSearch('');
+                        setShowUniDropdown(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowUniDropdown(false), 200)}
+                      required={!formData.university}
+                      className="w-full bg-transparent px-3 sm:px-4 py-4 sm:py-5 text-sm sm:text-base text-gray-900 placeholder:text-gray-400 outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  {showUniDropdown && (
+                    <div className="absolute top-full left-0 z-50 w-full mt-2 max-h-60 overflow-y-auto rounded-2xl bg-white shadow-xl border border-gray-100 py-2">
+                      {universities
+                        .filter(uni => uni.name.toLowerCase().includes(uniSearch.toLowerCase()))
+                        .map(uni => (
+                          <div
+                            key={uni._id}
+                            className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm font-medium text-slate-700 transition-colors"
+                            onClick={() => {
+                              setFormData({ ...formData, university: uni._id });
+                              setShowUniDropdown(false);
+                            }}
+                          >
+                            {uni.name}
+                          </div>
+                      ))}
+                      {(!uniSearch || 'other (my university is not listed)'.includes(uniSearch.toLowerCase())) && (
+                        <div
+                          className="px-5 py-3 hover:bg-blue-50 cursor-pointer text-sm font-bold text-blue-600 transition-colors border-t border-slate-50"
+                          onClick={() => {
+                            setFormData({ ...formData, university: 'other' });
+                            setShowUniDropdown(false);
+                          }}
+                        >
+                          Other (My University Is Not Listed)
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {formData.university === 'other' && (
+                <div className="md:col-span-2">
+                  <label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold text-gray-700">
+                    Enter University Name
+                  </label>
+                  <div className="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 sm:px-5 transition focus-within:border-blue-500 focus-within:bg-white">
+                    <FaUniversity className="text-gray-400 shrink-0" />
+                    <input
+                      type="text"
+                      name="customUniversity"
+                      placeholder="Full Name of University"
+                      value={formData.customUniversity}
+                      onChange={handleChange}
+                      required
+                      className="w-full bg-transparent px-3 sm:px-4 py-4 sm:py-5 text-sm sm:text-base text-gray-900 placeholder:text-gray-400 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className={formData.university === 'other' ? "md:col-span-2" : ""}>
+                <label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold text-gray-700">
+                  Student ID Number
+                </label>
+
+                <div className="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 sm:px-5 transition focus-within:border-blue-500 focus-within:bg-white">
+                  <FaIdCard className="text-gray-400 shrink-0" />
+
+                  <input
+                    type="text"
+                    name="studentId"
+                    placeholder="Student ID"
+                    value={formData.studentId}
+                    onChange={handleChange}
+                    required
+                    className="w-full bg-transparent px-3 sm:px-4 py-4 sm:py-5 text-sm sm:text-base text-gray-900 placeholder:text-gray-400 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* DYNAMIC FIELDS: OWNER */}
           {formData.role === 'owner' && (
             <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
@@ -277,6 +411,29 @@ export default function RegisterPage() {
               </div>
             </div>
           )}
+
+          {/* PHONE NUMBER (ALL ROLES) */}
+          <div className="grid gap-4 sm:gap-6">
+            <div>
+              <label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold text-gray-700">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+
+              <div className="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 sm:px-5 transition focus-within:border-blue-500 focus-within:bg-white">
+                <FaPhone className="text-gray-400 shrink-0" />
+
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="0241234567"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                  className="w-full bg-transparent px-3 sm:px-4 py-4 sm:py-5 text-sm sm:text-base text-gray-900 placeholder:text-gray-400 outline-none"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* PASSWORDS */}
           <div className="grid gap-4 sm:gap-6 md:grid-cols-2">

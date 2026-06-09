@@ -48,6 +48,12 @@ export interface User {
   verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended';
 
   rejectionReason?: string;
+
+  phone?: string;
+
+  studentId?: string;
+
+  university?: University;
 }
 
 /**

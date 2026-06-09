@@ -38,6 +38,10 @@ interface UserProfile {
 
   createdAt: string;
 
+  studentId?: string;
+
+  customUniversity?: string;
+
   university?: {
     name: string;
   };
@@ -310,22 +314,40 @@ export default function ProfilePage() {
               </select>
             </div>
 
-            {/* UNIVERSITY */}
-            <div className="rounded-[1.5rem] sm:rounded-3xl border border-slate-200 p-6 sm:p-8 md:col-span-2">
-              <div className="mb-4 sm:mb-5 flex items-center gap-3 text-blue-600">
-                <FaUniversity className="text-xl sm:text-2xl" />
+            {/* UNIVERSITY & STUDENT ID (STUDENTS ONLY) */}
+            {user?.role === 'student' && (
+              <>
+                {/* UNIVERSITY */}
+                <div className="rounded-[1.5rem] sm:rounded-3xl border border-slate-200 p-6 sm:p-8">
+                  <div className="mb-4 sm:mb-5 flex items-center gap-3 text-blue-600">
+                    <FaUniversity className="text-xl sm:text-2xl" />
 
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  University
-                </h2>
-              </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      University
+                    </h2>
+                  </div>
 
-              <div className="rounded-2xl bg-slate-100 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-700 truncate">
-                {user?.university
-                  ?.name ||
-                  'Not assigned'}
-              </div>
-            </div>
+                  <div className="rounded-2xl bg-slate-100 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-700 truncate">
+                    {user?.customUniversity || user?.university?.name || 'Not assigned'}
+                  </div>
+                </div>
+
+                {/* STUDENT ID */}
+                <div className="rounded-[1.5rem] sm:rounded-3xl border border-slate-200 p-6 sm:p-8">
+                  <div className="mb-4 sm:mb-5 flex items-center gap-3 text-blue-600">
+                    <FaUser className="text-xl sm:text-2xl" />
+
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                      Student ID Number
+                    </h2>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-100 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-700 truncate">
+                    {user?.studentId || 'Not assigned'}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* SAVE BUTTON */}

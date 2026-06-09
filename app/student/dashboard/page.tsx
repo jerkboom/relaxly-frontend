@@ -23,6 +23,7 @@ import {
   FaEnvelope,
   FaWhatsapp,
   FaBars,
+  FaChevronRight,
 } from 'react-icons/fa';
 
 import { useNav } from '../layout';
@@ -169,14 +170,17 @@ export default function StudentDashboardPage() {
 
           {/* STATS */}
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {/* ... same stats as before ... */}
             {/* TOTAL BOOKINGS */}
-            <div className="rounded-[2rem] bg-white p-7 shadow-sm">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl text-blue-600">
+            <Link
+              href="/student/bookings"
+              role="button"
+              className="group relative overflow-hidden rounded-[2rem] bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            >
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl text-blue-600 transition group-hover:scale-110">
                 <FaHome />
               </div>
 
-              <p className="text-slate-500">
+              <p className="text-slate-500 font-medium">
                 Total Bookings
               </p>
 
@@ -185,15 +189,24 @@ export default function StudentDashboardPage() {
                   dashboard?.stats?.totalBookings || 0
                 }
               </h2>
-            </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                <span className="text-xs font-bold text-slate-400 group-hover:text-blue-600 transition">View All Stays</span>
+                <FaChevronRight className="text-xs text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
 
             {/* ACTIVE */}
-            <div className="rounded-[2rem] bg-white p-7 shadow-sm">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-100 text-3xl text-green-600">
+            <Link
+              href="/student/bookings?status=active"
+              role="button"
+              className="group relative overflow-hidden rounded-[2rem] bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            >
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-3xl text-emerald-600 transition group-hover:scale-110">
                 <FaUniversity />
               </div>
 
-              <p className="text-slate-500">
+              <p className="text-slate-500 font-medium">
                 Active Bookings
               </p>
 
@@ -202,15 +215,24 @@ export default function StudentDashboardPage() {
                   dashboard?.stats?.activeBookings || 0
                 }
               </h2>
-            </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                <span className="text-xs font-bold text-slate-400 group-hover:text-emerald-600 transition">Manage Stays</span>
+                <FaChevronRight className="text-xs text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
 
             {/* PENDING */}
-            <div className="rounded-[2rem] bg-white p-7 shadow-sm">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-3xl text-orange-600">
+            <Link
+              href="/student/bookings?status=pending"
+              role="button"
+              className="group relative overflow-hidden rounded-[2rem] bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            >
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-3xl text-orange-600 transition group-hover:scale-110">
                 <FaClock />
               </div>
 
-              <p className="text-slate-500">
+              <p className="text-slate-500 font-medium">
                 Pending Bookings
               </p>
 
@@ -219,15 +241,24 @@ export default function StudentDashboardPage() {
                   dashboard?.stats?.pendingBookings || 0
                 }
               </h2>
-            </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                <span className="text-xs font-bold text-slate-400 group-hover:text-orange-600 transition">Review Requests</span>
+                <FaChevronRight className="text-xs text-slate-300 group-hover:text-orange-600 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
 
             {/* PAYMENTS */}
-            <div className="rounded-[2rem] bg-white p-7 shadow-sm">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-3xl text-indigo-600">
+            <Link
+              href="/student/bookings?payment=true"
+              role="button"
+              className="group relative overflow-hidden rounded-[2rem] bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            >
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-3xl text-indigo-600 transition group-hover:scale-110">
                 <FaMoneyBillWave />
               </div>
 
-              <p className="text-slate-500">
+              <p className="text-slate-500 font-medium">
                 Total Payments
               </p>
 
@@ -237,7 +268,12 @@ export default function StudentDashboardPage() {
                   dashboard?.stats?.totalPayments || 0
                 }
               </h2>
-            </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                <span className="text-xs font-bold text-slate-400 group-hover:text-indigo-600 transition">Payment History</span>
+                <FaChevronRight className="text-xs text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
+              </div>
+            </Link>
           </div>
 
           {/* QUICK ACTIONS */}
