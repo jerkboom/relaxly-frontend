@@ -118,7 +118,9 @@ export default function OwnerHostels() {
                 <h3 className="text-2xl font-black text-slate-900">{hostel.name}</h3>
                 <div className="mt-2 flex items-center gap-2 text-slate-500">
                   <FaMapMarkerAlt className="text-blue-600" />
-                  <span className="truncate">{hostel.location}</span>
+                  <span className="truncate">
+                    {typeof hostel.location === 'object' ? `${hostel.location.city}, ${hostel.location.region}` : hostel.location}
+                  </span>
                 </div>
 
                 <div className="mt-6 flex items-center gap-6 border-t border-slate-100 pt-6">

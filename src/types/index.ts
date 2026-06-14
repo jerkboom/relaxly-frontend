@@ -224,6 +224,8 @@ export interface CreateBookingPayload {
   hostel: string;
 
   checkInDate: string;
+
+  refundPolicyAccepted: boolean;
 }
 
 /**
@@ -305,7 +307,20 @@ export interface Hostel {
 
   description: string;
 
-  location: string;
+  location: {
+    address: string;
+    city: string;
+    region: string;
+    latitude?: number;
+    longitude?: number;
+  };
+
+  /** Enriched proximity data for the closest university */
+  nearestInstitution?: {
+    name: string;
+    distanceKm: number;
+    walkingMinutes: number;
+  };
 
   /** Display price for searching/sorting. */
   price: number;

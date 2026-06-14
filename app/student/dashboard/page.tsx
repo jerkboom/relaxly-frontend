@@ -48,7 +48,7 @@ interface DashboardData {
     hostel: {
       _id?: string;
       name: string;
-      location: string;
+      location: string | { address: string; city: string; region: string };
     };
 
     room: {
@@ -458,8 +458,9 @@ export default function StudentDashboardPage() {
 
                                 <span className="font-medium truncate">
                                   {
-                                    booking.hostel
-                                      ?.location
+                                    typeof booking.hostel?.location === 'object'
+                                      ? `${booking.hostel.location.city}, ${booking.hostel.location.region}`
+                                      : (booking.hostel?.location || 'N/A')
                                   }
                                 </span>
                               </div>

@@ -33,7 +33,7 @@ interface OwnerDetails {
 interface HostelShort {
   _id: string;
   name: string;
-  location: string;
+  location: string | { address: string; city: string; region: string };
 }
 
 export default function OwnerContactPage() {
@@ -190,7 +190,7 @@ export default function OwnerContactPage() {
                   <h3 className="mt-1 text-xl font-black text-slate-900">{hostel.name}</h3>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
                     <FaMapMarkerAlt />
-                    {hostel.location}
+                    {typeof hostel.location === 'object' ? `${hostel.location.city}, ${hostel.location.region}` : hostel.location}
                   </p>
                 </div>
               )}

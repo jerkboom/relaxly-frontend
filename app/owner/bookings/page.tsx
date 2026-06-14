@@ -17,16 +17,6 @@
  * - Check-in System: Mark students as arrived once paid and approved.
  * - Identity Verification: Displays booking codes and payment references.
  *
- * API Dependencies:
- * - getOwnerBookings(): Fetches all reservations for owner properties.
- * - updateBookingStatus(): Approves or rejects a reservation.
- * - checkInStudent(): Finalizes student arrival.
- *
- * Responsive Behavior:
- * - Mobile: Fully stacked card layout for narrow screens.
- * - Tablet/Laptop: 2-column grid to prevent content squeezing.
- * - Desktop/Ultrawide: Unified 5-column row for efficient data density.
- *
  * ==================================================
  */
 
@@ -39,7 +29,7 @@ import {
   FaCheckCircle, 
   FaTimesCircle, 
   FaClock,
-  FaSearch,
+  FaSearch, 
   FaFilter,
   FaMars,
   FaVenus,
@@ -50,9 +40,15 @@ import {
   FaIdCard,
   FaUniversity,
   FaEnvelope,
-  FaInfoCircle
+  FaInfoCircle,
+  FaBed,
+  FaEdit,
+  FaHistory,
+  FaStickyNote,
+  FaBuilding,
+  FaExclamationTriangle
 } from 'react-icons/fa';
-import { getOwnerBookings, updateBookingStatus, checkInStudent } from '../../../src/services/bookingService';
+import { getOwnerBookings, updateBookingStatus, checkInStudent, updateRoomAssignment, checkOutStudent } from '../../../src/services/bookingService';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -70,8 +66,25 @@ interface Booking {
       _id: string;
       name: string;
     };
+    customUniversity?: string;
     gender?: 'Male' | 'Female';
   };
+  studentPhone?: string;
+  studentIdCard?: string;
+  studentUniversity?: string;
+  assignedRoomNumber?: string;
+  assignedBedNumber?: string;
+  assignedFloorNumber?: string;
+  assignedBlock?: string;
+  occupancyNotes?: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
+  history?: {
+    event: string;
+    details: string;
+    actor: { _id: string, name: string } | string;
+    timestamp: string;
+  }[];
   hostel: {
     _id: string;
     name: string;
@@ -89,7 +102,7 @@ interface Booking {
     femaleAvailableBeds: number;
     roomStatus: 'available' | 'unavailable' | 'maintenance';
   };
-  bookingStatus: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'checked-in';
+  bookingStatus: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed' | 'checked_in';
   paymentStatus: 'pending' | 'paid' | 'failed' | 'cancelled' | 'abandoned';
   amount: number;
   amountPaid: number;
@@ -97,8 +110,6 @@ interface Booking {
   createdAt: string;
   bookingCode?: string;
   paymentReference?: string;
-  checkedIn?: boolean;
-  checkedInAt?: string;
 }
 
 // --- COMPONENTS ---
@@ -106,10 +117,11 @@ interface Booking {
 /**
  * Detailed modal for student and booking information.
  */
-const BookingModal = ({ booking, onClose, onCheckIn, processingId }: { 
+const BookingModal = ({ booking, onClose, onCheckIn, onEditAssignment, processingId }: { 
   booking: Booking, 
   onClose: () => void, 
   onCheckIn: (id: string) => void,
+  onEditAssignment: (booking: Booking) => void,
   processingId: string | null
 }) => (
   <motion.div 
@@ -147,7 +159,7 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-10 pt-16">
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Student Verification</h3>
             <div className="space-y-4">
@@ -166,7 +178,7 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
                 </div>
                 <div>
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Phone Number</p>
-                  <p className="text-sm font-bold text-slate-700">{booking.student?.phone || 'Not Provided'}</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.studentPhone || booking.student?.phone || 'Not Provided'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 group">
@@ -175,7 +187,7 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
                 </div>
                 <div>
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Student ID Number</p>
-                  <p className="text-sm font-bold text-slate-700">{booking.student?.studentId || 'Not Provided'}</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.studentIdCard || booking.student?.studentId || 'Not Provided'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 group">
@@ -184,14 +196,57 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
                 </div>
                 <div>
                   <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">University / Institution</p>
-                  <p className="text-sm font-bold text-slate-700">{booking.student?.university?.name || 'Not Assigned'}</p>
+                  <p className="text-sm font-bold text-slate-700">{booking.studentUniversity || booking.student?.customUniversity || booking.student?.university?.name || 'Not Assigned'}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* OCCUPANCY DETAILS */}
+          {(booking.assignedRoomNumber || booking.checkedIn) && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Occupancy</h3>
+                {booking.bookingStatus === 'checked_in' && (
+                  <button 
+                    onClick={() => onEditAssignment(booking)}
+                    className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                  >
+                    <FaEdit /> Edit
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="rounded-2xl bg-blue-50 p-4 border border-blue-100">
+                  <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Room</p>
+                  <p className="text-sm font-black text-blue-700">{booking.assignedRoomNumber || 'Unassigned'}</p>
+                </div>
+                <div className="rounded-2xl bg-indigo-50 p-4 border border-indigo-100">
+                  <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest">Bed</p>
+                  <p className="text-sm font-black text-indigo-700">{booking.assignedBedNumber || 'N/A'}</p>
+                </div>
+                <div className="rounded-2xl bg-purple-50 p-4 border border-purple-100">
+                  <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest">Floor</p>
+                  <p className="text-sm font-black text-purple-700">{booking.assignedFloorNumber || 'N/A'}</p>
+                </div>
+                <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
+                  <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Block</p>
+                  <p className="text-sm font-black text-amber-700">{booking.assignedBlock || 'N/A'}</p>
+                </div>
+              </div>
+              {booking.occupancyNotes && (
+                <div className="mt-4 rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                  <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
+                    <FaStickyNote /> Occupancy Notes
+                  </p>
+                  <p className="text-xs font-medium text-slate-600 italic leading-relaxed">"{booking.occupancyNotes}"</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           <div>
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Booking Details</h3>
             <div className="rounded-3xl bg-slate-50 p-6 space-y-4">
@@ -217,12 +272,25 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50 border border-blue-100">
-            <FaInfoCircle className="text-blue-500 shrink-0" />
-            <p className="text-[10px] font-bold text-blue-700 leading-relaxed">
-              Verify student identity by matching their physical Student ID card with the information provided above during check-in.
-            </p>
+
+          {/* HISTORY TIMELINE */}
+          <div>
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+              <FaHistory /> Activity Timeline
+            </h3>
+            <div className="space-y-4 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+              {(booking.history || []).map((event, idx) => (
+                <div key={idx} className="relative pl-8 group">
+                  <div className="absolute left-1.5 top-1 h-3 w-3 rounded-full border-2 border-white bg-slate-300 group-first:bg-blue-600 transition" />
+                  <p className="text-[10px] font-black text-slate-900 tracking-tight">{event.event.replace(/_/g, ' ')}</p>
+                  <p className="text-[10px] text-slate-500 font-medium">{event.details}</p>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{new Date(event.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</p>
+                </div>
+              ))}
+              {(!booking.history || booking.history.length === 0) && (
+                <p className="text-[10px] text-slate-400 font-medium italic pl-8">No activity recorded yet.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -234,10 +302,10 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
         >
           Close Window
         </button>
-        {(booking.bookingStatus === 'approved' && booking.paymentStatus === 'paid' && !booking.checkedIn) && (
+        {(['approved', 'completed'].includes(booking.bookingStatus) && booking.paymentStatus === 'paid' && !booking.checkedIn) && (
           <button 
             disabled={processingId !== null}
-            onClick={() => { onCheckIn(booking._id); onClose(); }}
+            onClick={() => { onCheckIn(booking._id); }}
             className="px-8 py-3 rounded-xl bg-blue-600 text-xs font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2"
           >
             {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <><FaUserGraduate /> Proceed to Check In</>}
@@ -247,6 +315,205 @@ const BookingModal = ({ booking, onClose, onCheckIn, processingId }: {
     </motion.div>
   </motion.div>
 );
+
+/**
+ * REDESIGNED: Modal for assigning or editing room/bed numbers.
+ */
+const RoomAssignmentModal = ({ 
+  booking, 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  isProcessing,
+  type = 'check-in'
+}: { 
+  booking: Booking, 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: (data: { assignedRoomNumber: string, assignedBedNumber: string, assignedFloorNumber: string, assignedBlock?: string, occupancyNotes?: string }) => void,
+  isProcessing: boolean,
+  type?: 'check-in' | 'edit'
+}) => {
+  const [roomNumber, setRoomNumber] = useState(booking.assignedRoomNumber || '');
+  const [bedNumber, setBedNumber] = useState(booking.assignedBedNumber || '');
+  const [floorNumber, setFloorNumber] = useState(booking.assignedFloorNumber || '');
+  const [blockName, setBlockName] = useState(booking.assignedBlock || '');
+  const [notes, setNotes] = useState(booking.occupancyNotes || '');
+
+  if (!isOpen) return null;
+
+  const isFormValid = roomNumber.trim() !== '' && bedNumber.trim() !== '' && floorNumber.trim() !== '';
+
+  const handleConfirm = () => {
+    onConfirm({ 
+      assignedRoomNumber: roomNumber, 
+      assignedBedNumber: bedNumber, 
+      assignedFloorNumber: floorNumber,
+      assignedBlock: blockName,
+      occupancyNotes: notes 
+    });
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md"
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 30 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 30 }}
+        className="w-full max-w-lg overflow-hidden rounded-[3rem] bg-white shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* HEADER */}
+        <div className="bg-slate-900 p-8 text-white relative">
+          <div className="flex items-center gap-5">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[1.5rem] bg-blue-600 shadow-lg shadow-blue-500/20">
+              <FaUserGraduate className="text-2xl" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">{type === 'check-in' ? 'Student Check-In' : 'Update Allocation'}</h2>
+              <p className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] mt-1">Finalizing Occupancy Record</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="absolute right-8 top-8 text-white/40 hover:text-white transition">
+            <FaTimesCircle className="text-xl" />
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        <div className="p-8 max-h-[70vh] overflow-y-auto scrollbar-hide">
+          
+          {/* STUDENT SUMMARY */}
+          <div className="mb-8 rounded-3xl bg-slate-50 p-6 border border-slate-100">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+              <FaInfoCircle className="text-blue-500" /> Student Summary
+            </h3>
+            <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Full Name</p>
+                <p className="text-sm font-bold text-slate-800">{booking.student?.name}</p>
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Student ID</p>
+                <p className="text-sm font-bold text-slate-800">{booking.student?.studentId || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Phone</p>
+                <p className="text-sm font-bold text-slate-800">{booking.student?.phone || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">University</p>
+                <p className="text-sm font-bold text-slate-800 truncate">{booking.student?.university?.name || booking.student?.customUniversity || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ACCOMMODATION ASSIGNMENT */}
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <FaBed className="text-blue-500" /> Accommodation Assignment
+            </h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">Room Number *</label>
+                <input 
+                  type="text"
+                  value={roomNumber}
+                  onChange={e => setRoomNumber(e.target.value)}
+                  placeholder="e.g. 304"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition shadow-inner"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">Bed Number *</label>
+                <input 
+                  type="text"
+                  value={bedNumber}
+                  onChange={e => setBedNumber(e.target.value)}
+                  placeholder="e.g. Bed 1"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition shadow-inner"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">Floor Number *</label>
+                <input 
+                  type="text"
+                  value={floorNumber}
+                  onChange={e => setFloorNumber(e.target.value)}
+                  placeholder="e.g. 2nd Floor"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition shadow-inner"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">Block / Wing (Opt.)</label>
+                <input 
+                  type="text"
+                  value={blockName}
+                  onChange={e => setBlockName(e.target.value)}
+                  placeholder="e.g. Block A"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition shadow-inner"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-500 pl-1">Occupancy Notes (Optional)</label>
+              <textarea 
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="Key collection info, special requests..."
+                rows={2}
+                className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 px-5 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-600 transition resize-none shadow-inner"
+              />
+            </div>
+
+            {!isFormValid && (
+              <motion.p 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[10px] font-bold text-rose-500 uppercase tracking-tight flex items-center gap-1.5 bg-rose-50 p-4 rounded-2xl border border-rose-100"
+              >
+                <FaExclamationTriangle className="shrink-0" /> Room, Bed, and Floor are mandatory for check-in.
+              </motion.p>
+            )}
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="bg-slate-50 p-8 flex gap-4">
+          <button 
+            onClick={onClose}
+            className="flex-1 px-6 py-4 text-xs font-black text-slate-500 hover:text-slate-900 transition uppercase tracking-widest"
+          >
+            Cancel
+          </button>
+          <button 
+            disabled={!isFormValid || isProcessing}
+            onClick={handleConfirm}
+            className="flex-[2] relative overflow-hidden rounded-2xl bg-blue-600 px-8 py-4 text-xs font-black text-white shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition disabled:opacity-50 active:scale-95"
+          >
+            {isProcessing ? (
+               <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <FaCheckCircle className="text-base" /> {type === 'check-in' ? 'CONFIRM CHECK-IN' : 'UPDATE ALLOCATION'}
+              </span>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 /**
  * Renders a stylized badge based on entity state.
@@ -263,7 +530,7 @@ const StatusBadge = ({ type, value }: { type: 'booking' | 'payment' | 'room' | '
         case 'rejected': return 'bg-rose-100 text-rose-700 border-rose-200';
         case 'cancelled': return 'bg-slate-100 text-slate-600 border-slate-200';
         case 'completed': return 'bg-blue-100 text-blue-700 border-blue-200';
-        case 'checked-in': return 'bg-blue-600 text-white border-blue-700';
+        case 'checked_in': return 'bg-blue-600 text-white border-blue-700 shadow-sm shadow-blue-200';
         default: return 'bg-slate-50 text-slate-400 border-slate-100';
       }
     }
@@ -363,13 +630,19 @@ export default function OwnerBookings() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Assignment Modal States
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [assignmentType, setAssignmentType] = useState<'check-in' | 'edit'>('check-in');
+  const [bookingForAssignment, setBookingForAssignment] = useState<Booking | null>(null);
   
   // Filter States
   const [filters, setFilters] = useState({
     bookingStatus: 'All',
     paymentStatus: 'All',
-    hostel: 'All',
-    genderAllocation: 'All'
+    hostelId: 'All',
+    allocation: 'All',
+    assignment: 'All'
   });
 
   /** Fetches fresh booking data for the owner. */
@@ -416,21 +689,87 @@ export default function OwnerBookings() {
   };
 
   /**
-   * Finalizes the arrival flow.
-   * Marking a student as checked-in auto-completes the booking record.
+   * Initial Check-In action: Opens the assignment modal.
    */
-  const handleCheckIn = async (bookingId: string) => {
+  const handleInitiateCheckIn = (bookingId: string) => {
+    const booking = bookings.find(b => b._id === bookingId);
+    if (!booking) return;
+    setBookingForAssignment(booking);
+    setAssignmentType('check-in');
+    setIsAssignmentModalOpen(true);
+  };
+
+  /**
+   * Edit Assignment action: Opens the assignment modal.
+   */
+  const handleInitiateEditAssignment = (booking: Booking) => {
+    setBookingForAssignment(booking);
+    setAssignmentType('edit');
+    setIsAssignmentModalOpen(true);
+  };
+
+  /**
+   * Finalizes the arrival flow or updates assignment.
+   */
+  const handleConfirmAssignment = async (data: { assignedRoomNumber: string, assignedBedNumber: string, assignedFloorNumber: string, assignedBlock?: string, occupancyNotes?: string }) => {
+    if (!bookingForAssignment) return;
+
     try {
-      setProcessingId(bookingId);
-      await checkInStudent(bookingId);
-      toast.success('Student checked-in successfully');
+      setProcessingId(bookingForAssignment._id);
+      
+      let updated: Booking;
+      if (assignmentType === 'check-in') {
+        const checkInPayload = {
+          ...data,
+          checkedIn: true,
+          checkedInAt: new Date().toISOString()
+        };
+        updated = await checkInStudent(bookingForAssignment._id, checkInPayload as any) as unknown as Booking;
+        toast.success('Accommodation assigned successfully.');
+      } else {
+        updated = await updateRoomAssignment(bookingForAssignment._id, data) as unknown as Booking;
+        toast.success('Room assignment updated');
+      }
       
       setBookings(prev => prev.map(b => 
-        b._id === bookingId ? { ...b, bookingStatus: 'checked-in' as any, checkedIn: true, checkedInAt: new Date().toISOString() } : b
+        b._id === bookingForAssignment._id ? { ...b, ...updated } : b
       ));
+
+      if (selectedBooking?._id === bookingForAssignment._id) {
+        setSelectedBooking(prev => prev ? { ...prev, ...updated } : null);
+      }
+
+      setIsAssignmentModalOpen(false);
+      setBookingForAssignment(null);
     } catch (error: unknown) {
-      console.error('Check-in failed:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to check-in student');
+      console.error('Assignment failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Action failed');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  /**
+   * Finalizes the check-out flow.
+   */
+  const handleCheckOut = async (bookingId: string) => {
+    if (!window.confirm('Are you sure you want to check-out this student? This will mark the room as vacant.')) return;
+    
+    try {
+      setProcessingId(bookingId);
+      const updated = await checkOutStudent(bookingId) as unknown as Booking;
+      toast.success('Student checked-out successfully');
+      
+      setBookings(prev => prev.map(b => 
+        b._id === bookingId ? { ...b, ...updated } : b
+      ));
+
+      if (selectedBooking?._id === bookingId) {
+        setSelectedBooking(prev => prev ? { ...prev, ...updated } : null);
+      }
+    } catch (error: unknown) {
+      console.error('Check-out failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to check-out student');
     } finally {
       setProcessingId(null);
     }
@@ -438,33 +777,77 @@ export default function OwnerBookings() {
 
   /** Dynamically generates a list of unique hostels for the filter dropdown. */
   const hostelOptions = useMemo(() => {
-    const names = Array.from(new Set(bookings.map(b => b.hostel?.name).filter(Boolean)));
-    return ['All', ...names];
+    const hostels = bookings.map(b => b.hostel).filter(h => h && h._id && h.name);
+    const uniqueHostels = Array.from(new Map(hostels.map(h => [h._id, h])).values());
+    return uniqueHostels;
   }, [bookings]);
+
+  /** 
+   * Unified helper to determine if a booking is physically assigned a space.
+   * Business Rule: Checked-in students are ALWAYS considered assigned.
+   */
+  const isAssigned = (booking: Booking) => 
+    booking.bookingStatus === 'checked_in' || 
+    !!booking.assignedRoomNumber;
 
   /** 
    * Client-side search and filter logic. 
    * Provides instant UI feedback without network round-trips.
    */
   const filteredBookings = useMemo(() => {
-    return bookings.filter(booking => {
+    // Bulletproof normalization: handles both 'checked-in' and 'checked_in'
+    const normalize = (value: string = '') => 
+      (value || '').trim().toLowerCase().replace(/-/g, '_');
+
+    const result = bookings.filter(booking => {
       const student = booking.student || {};
       const hostel = booking.hostel || {};
       const room = booking.room || {};
 
+      const bStatus = normalize(booking.bookingStatus);
+      const fStatus = normalize(filters.bookingStatus);
+      const bPayment = normalize(booking.paymentStatus);
+      const fPayment = normalize(filters.paymentStatus);
+
       // Search matching across identity and property fields
-      const searchStr = `${student.name} ${student.email} ${hostel.name} ${room.roomType}`.toLowerCase();
+      const searchStr = `${student.name} ${student.email} ${hostel.name} ${room.roomType} ${booking.assignedRoomNumber || ''}`.toLowerCase();
       if (searchQuery && !searchStr.includes(searchQuery.toLowerCase())) return false;
 
-      // Exact match status filtering
-      if (filters.bookingStatus !== 'All' && booking.bookingStatus !== filters.bookingStatus.toLowerCase()) return false;
-      if (filters.paymentStatus !== 'All' && booking.paymentStatus !== filters.paymentStatus.toLowerCase()) return false;
-      if (filters.hostel !== 'All' && hostel.name !== filters.hostel) return false;
-      if (filters.genderAllocation !== 'All' && room.genderAllocation !== filters.genderAllocation) return false;
+      // 1. Booking Status Filter
+      if (filters.bookingStatus !== 'All') {
+        if (bStatus !== fStatus) return false;
+      }
+      
+      // 2. Payment Status Filter
+      if (filters.paymentStatus !== 'All') {
+        if (bPayment !== fPayment) return false;
+      }
+
+      // 3. Hostel Filter (by ID)
+      if (filters.hostelId !== 'All' && String(hostel._id) !== String(filters.hostelId)) return false;
+
+      // 4. Allocation Filter (Uses same logic as Assignment)
+      if (filters.allocation !== 'All') {
+        const assigned = isAssigned(booking);
+        if (filters.allocation === 'Allocated' && !assigned) return false;
+        if (filters.allocation === 'Unallocated' && assigned) return false;
+      }
+
+      // 5. Assignment Filter
+      if (filters.assignment !== 'All') {
+        const assigned = isAssigned(booking);
+        if (filters.assignment === 'Assigned' && !assigned) return false;
+        if (filters.assignment === 'Unassigned' && assigned) return false;
+      }
 
       return true;
     });
+
+    return result;
   }, [bookings, searchQuery, filters]);
+
+
+
 
   if (loading) {
     return (
@@ -489,7 +872,7 @@ export default function OwnerBookings() {
             <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Search student or hostel..."
+              placeholder="Search student or room..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-2xl border-2 border-slate-100 bg-white py-3 pl-12 pr-6 text-sm font-bold text-slate-900 outline-none transition focus:border-blue-600 sm:w-80"
@@ -516,7 +899,7 @@ export default function OwnerBookings() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-4 rounded-[2rem] bg-slate-50 p-6 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 rounded-[2rem] bg-slate-50 p-6 md:grid-cols-5">
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Booking Status</label>
                 <select 
@@ -524,7 +907,9 @@ export default function OwnerBookings() {
                   onChange={(e) => setFilters({ ...filters, bookingStatus: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-600/20"
                 >
-                  {['All', 'Pending', 'Approved', 'Rejected', 'Cancelled', 'Completed'].map(opt => <option key={opt}>{opt}</option>)}
+                  {['All', 'Pending', 'Approved', 'Completed', 'Rejected', 'Cancelled'].map(opt => (
+                    <option key={opt} value={opt === 'All' ? 'All' : opt.toLowerCase()}>{opt}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -534,27 +919,40 @@ export default function OwnerBookings() {
                   onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-600/20"
                 >
-                  {['All', 'Paid', 'Pending', 'Failed'].map(opt => <option key={opt}>{opt}</option>)}
+                  {['All', 'Paid', 'Pending', 'Failed', 'Refunded'].map(opt => <option key={opt}>{opt}</option>)}
                 </select>
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Hostel</label>
                 <select 
-                  value={filters.hostel}
-                  onChange={(e) => setFilters({ ...filters, hostel: e.target.value })}
+                  value={filters.hostelId}
+                  onChange={(e) => setFilters({ ...filters, hostelId: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-600/20"
                 >
-                  {hostelOptions.map(opt => <option key={opt}>{opt}</option>)}
+                  <option value="All">All Hostels</option>
+                  {hostelOptions.map(hostel => (
+                    <option key={hostel._id} value={hostel._id}>{hostel.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Allocation</label>
                 <select 
-                  value={filters.genderAllocation}
-                  onChange={(e) => setFilters({ ...filters, genderAllocation: e.target.value })}
+                  value={filters.allocation}
+                  onChange={(e) => setFilters({ ...filters, allocation: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-600/20"
                 >
-                  {['All', 'Male', 'Female', 'Mixed'].map(opt => <option key={opt}>{opt}</option>)}
+                  {['All', 'Allocated', 'Unallocated'].map(opt => <option key={opt}>{opt}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Assignment</label>
+                <select 
+                  value={filters.assignment}
+                  onChange={(e) => setFilters({ ...filters, assignment: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-600/20"
+                >
+                  {['All', 'Assigned', 'Unassigned'].map(opt => <option key={opt}>{opt}</option>)}
                 </select>
               </div>
             </div>
@@ -571,7 +969,7 @@ export default function OwnerBookings() {
           <h2 className="text-3xl font-black text-slate-900">No matching bookings</h2>
           <p className="mt-4 text-slate-500 font-medium">Try adjusting your filters or search terms.</p>
           <button 
-            onClick={() => { setFilters({ bookingStatus: 'All', paymentStatus: 'All', hostel: 'All', genderAllocation: 'All' }); setSearchQuery(''); }}
+            onClick={() => { setFilters({ bookingStatus: 'All', paymentStatus: 'All', hostelId: 'All', allocation: 'All', assignment: 'All' }); setSearchQuery(''); }}
             className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 font-black text-white shadow-lg shadow-blue-200 transition hover:scale-105 active:scale-95"
           >
             Clear All Filters
@@ -629,10 +1027,10 @@ export default function OwnerBookings() {
                             <span className="truncate">ID: {booking.student?.studentId}</span>
                           </div>
                         )}
-                        {booking.student?.university?.name && (
+                        {(booking.studentUniversity || booking.student?.university?.name || booking.student?.customUniversity) && (
                           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 truncate">
                             <FaUniversity className="shrink-0 text-[10px] text-amber-500" />
-                            <span className="truncate">{booking.student?.university?.name}</span>
+                            <span className="truncate">{booking.studentUniversity || booking.student?.university?.name || booking.student?.customUniversity}</span>
                           </div>
                         )}
                       </div>
@@ -717,23 +1115,69 @@ export default function OwnerBookings() {
                           {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <><FaTimesCircle /> Reject</>}
                         </button>
                       </div>
-                    ) : (booking.bookingStatus === 'approved' && booking.paymentStatus === 'paid') ? (
-                      <button
-                        disabled={processingId !== null}
-                        onClick={() => handleCheckIn(booking._id)}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-[10px] font-black text-white transition hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-200 disabled:opacity-50"
-                      >
-                        {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <><FaUserGraduate /> Check In</>}
-                      </button>
-                    ) : booking.checkedIn ? (
-                      <div className="text-left xl:text-right">
-                        <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-1">Arrived At</p>
-                        <p className="text-[10px] font-bold text-slate-700">{booking.checkedInAt ? new Date(booking.checkedInAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/A'}</p>
-                      </div>
                     ) : (
-                      <div className="text-left xl:text-right lg:opacity-40">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">ID: {booking._id.slice(-6).toUpperCase()}</p>
-                        <p className="text-[11px] font-black text-slate-900">{new Date(booking.createdAt).toLocaleDateString()}</p>
+                      <div className="flex flex-col gap-2 w-full xl:items-end">
+                        {/* 1. OCCUPANCY BADGES (Show if assigned, even if already checked out) */}
+                        {isAssigned(booking) && (
+                          <div className="flex flex-wrap gap-2 w-full xl:w-fit justify-end">
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">
+                              <FaBed className="text-blue-600 text-[10px]" />
+                              <span className="text-[10px] font-black text-blue-700 uppercase tracking-tight">Room {booking.assignedRoomNumber}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100">
+                              <FaInfoCircle className="text-indigo-600 text-[10px]" />
+                              <span className="text-[10px] font-black text-indigo-700 uppercase tracking-tight">Bed {booking.assignedBedNumber}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-100">
+                              <FaHome className="text-purple-600 text-[10px]" />
+                              <span className="text-[10px] font-black text-purple-700 uppercase tracking-tight">Floor {booking.assignedFloorNumber}</span>
+                            </div>
+                            {booking.assignedBlock && (
+                              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-100">
+                                <FaBuilding className="text-amber-600 text-[10px]" />
+                                <span className="text-[10px] font-black text-amber-700 uppercase tracking-tight">{booking.assignedBlock}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 2. ACTIVE ACTIONS (Show only if currently checked in) */}
+                        {booking.bookingStatus === 'checked_in' && (
+                          <div className="flex flex-wrap xl:flex-col gap-2 w-full">
+                            <button 
+                              onClick={() => handleInitiateEditAssignment(booking)}
+                              className="flex-1 xl:w-full py-2 rounded-lg bg-slate-50 text-[9px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 transition flex items-center justify-center gap-1"
+                            >
+                              <FaEdit /> Edit
+                            </button>
+                            <button 
+                              disabled={processingId !== null}
+                              onClick={() => handleCheckOut(booking._id)}
+                              className="flex-1 xl:w-full py-2 rounded-lg bg-rose-50 text-[9px] font-black text-rose-600 uppercase tracking-widest hover:bg-rose-100 transition flex items-center justify-center gap-1"
+                            >
+                              {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-600 border-t-transparent" /> : <><FaTimesCircle /> Check Out</>}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 3. CHECK-IN ACTION (Show for approved/completed if not yet physically present) */}
+                        {(['approved', 'completed'].includes(booking.bookingStatus) && booking.paymentStatus === 'paid' && !booking.checkedIn) && (
+                          <button
+                            disabled={processingId !== null}
+                            onClick={() => handleInitiateCheckIn(booking._id)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-[10px] font-black text-white transition hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-200 disabled:opacity-50"
+                          >
+                            {processingId === booking._id ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <><FaUserGraduate /> Check In</>}
+                          </button>
+                        )}
+                        
+                        {/* 4. ID Display for Fallback */}
+                        {!booking.checkedIn && (
+                           <div className="text-left xl:text-right lg:opacity-40">
+                             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">ID: {booking._id.slice(-6).toUpperCase()}</p>
+                             <p className="text-[11px] font-black text-slate-900">{new Date(booking.createdAt).toLocaleDateString()}</p>
+                           </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -744,9 +1188,9 @@ export default function OwnerBookings() {
                 <div className="absolute bottom-0 left-0 h-1 bg-slate-50 w-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
-                    animate={{ width: booking.bookingStatus === 'approved' ? '100%' : booking.bookingStatus === 'pending' ? '50%' : '100%' }}
+                    animate={{ width: (booking.bookingStatus === 'approved' || booking.bookingStatus === 'checked_in') ? '100%' : booking.bookingStatus === 'pending' ? '50%' : '100%' }}
                     className={`h-full ${
-                      booking.bookingStatus === 'approved' ? 'bg-emerald-500' : 
+                      (booking.bookingStatus === 'approved' || booking.bookingStatus === 'checked_in') ? 'bg-emerald-500' : 
                       booking.bookingStatus === 'pending' ? 'bg-amber-500' : 
                       booking.bookingStatus === 'rejected' ? 'bg-rose-500' : 'bg-slate-300'
                     }`}
@@ -764,8 +1208,22 @@ export default function OwnerBookings() {
           <BookingModal 
             booking={selectedBooking} 
             onClose={() => setSelectedBooking(null)} 
-            onCheckIn={handleCheckIn}
+            onCheckIn={handleInitiateCheckIn}
+            onEditAssignment={handleInitiateEditAssignment}
             processingId={processingId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isAssignmentModalOpen && bookingForAssignment && (
+          <RoomAssignmentModal 
+            booking={bookingForAssignment}
+            isOpen={isAssignmentModalOpen}
+            onClose={() => { setIsAssignmentModalOpen(false); setBookingForAssignment(null); }}
+            onConfirm={handleConfirmAssignment}
+            isProcessing={processingId === bookingForAssignment._id}
+            type={assignmentType}
           />
         )}
       </AnimatePresence>

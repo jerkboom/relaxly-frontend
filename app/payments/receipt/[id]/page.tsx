@@ -48,7 +48,7 @@ interface Receipt {
   hostel: {
     _id: string;
     name: string;
-    location: string;
+    location: string | { address: string; city: string; region: string };
     owner?: {
       name?: string;
       email?: string;
@@ -203,7 +203,9 @@ export default function ReceiptPage() {
 
                 <span className="font-bold">
                   {
-                    receipt.hostel?.location || 'N/A'
+                    typeof receipt.hostel?.location === 'object'
+                      ? `${receipt.hostel.location.city}, ${receipt.hostel.location.region}`
+                      : (receipt.hostel?.location || 'N/A')
                   }
                 </span>
               </div>

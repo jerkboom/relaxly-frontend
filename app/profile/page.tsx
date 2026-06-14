@@ -65,11 +65,25 @@ export default function ProfilePage() {
   const [gender, setGender] =
     useState('');
 
+  const [university, setUniversity] = useState('');
+  const [customUniversity, setCustomUniversity] = useState('');
+  const [studentId, setStudentId] = useState('');
+  const [universities, setUniversities] = useState<{ _id: string, name: string }[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
   const [saving, setSaving] =
     useState(false);
+
+  const fetchUniversities = async () => {
+    try {
+      const response = await API.get('/universities');
+      setUniversities(response.data?.data || response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch universities:', error);
+    }
+  };
 
   const fetchProfile =
     useCallback(
@@ -96,6 +110,10 @@ export default function ProfilePage() {
           setGender(profileData.gender ||
               ''
           );
+
+          setUniversity(profileData.university?._id || (profileData.customUniversity ? 'other' : ''));
+          setCustomUniversity(profileData.customUniversity || '');
+          setStudentId(profileData.studentId || '');
         } catch (error) {
           console.error(error);
         } finally {
@@ -106,6 +124,7 @@ export default function ProfilePage() {
     );
 
   useEffect(() => {
+    void fetchUniversities();
     const timer =
       window.setTimeout(() => {
         void fetchProfile();
@@ -127,6 +146,9 @@ export default function ProfilePage() {
               name,
               phone,
               gender,
+              university,
+              customUniversity: university === 'other' ? customUniversity : undefined,
+              studentId,
             },
             {
               headers: {
@@ -327,9 +349,27 @@ export default function ProfilePage() {
                     </h2>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-100 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-700 truncate">
-                    {user?.customUniversity || user?.university?.name || 'Not assigned'}
-                  </div>
+                  <select
+                    value={university}
+                    onChange={(e) => setUniversity(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-800 outline-none transition focus:border-blue-500"
+                  >
+                    <option value="">Select University</option>
+                    {universities.map((u) => (
+                      <option key={u._id} value={u._id}>{u.name}</option>
+                    ))}
+                    <option value="other">Other (Not listed)</option>
+                  </select>
+
+                  {university === 'other' && (
+                    <input
+                      type="text"
+                      value={customUniversity}
+                      onChange={(e) => setCustomUniversity(e.target.value)}
+                      placeholder="Enter university name"
+                      className="mt-4 w-full rounded-2xl border border-slate-300 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-800 outline-none transition focus:border-blue-500"
+                    />
+                  )}
                 </div>
 
                 {/* STUDENT ID */}
@@ -342,9 +382,13 @@ export default function ProfilePage() {
                     </h2>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-100 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-700 truncate">
-                    {user?.studentId || 'Not assigned'}
-                  </div>
+                  <input
+                    type="text"
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
+                    placeholder="Enter student ID"
+                    className="w-full rounded-2xl border border-slate-300 px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg font-medium text-slate-800 outline-none transition focus:border-blue-500"
+                  />
                 </div>
               </>
             )}

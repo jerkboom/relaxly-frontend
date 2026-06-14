@@ -16,21 +16,33 @@ import {
   FaEye,
   FaBuilding,
   FaMoneyBillWave,
-  FaRegCalendarAlt
+  FaRegCalendarAlt,
+  FaFileExcel,
+  FaFileCsv,
+  FaFilePdf,
+  FaDownload
 } from 'react-icons/fa';
 import Link from 'next/link';
 import { getPayoutHistory, Payout, PayoutSummary } from '../../../src/services/payoutService';
+import { downloadPayoutReport } from '../../../src/services/reportService';
+import PayoutDestinationInfo from '../../../src/components/owner/PayoutDestinationInfo';
 import toast from 'react-hot-toast';
 
+import { useRouter, useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
+
 export default function PayoutHistoryPage() {
+  const router = useRouter();
+  
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [summary, setSummary] = useState<PayoutSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState<'csv' | 'excel' | 'pdf' | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   
-  // Filters
+  // Filters (Local state only, no URL sync for cards)
   const [status, setStatus] = useState('');
   const [hostelId, setHostelId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -67,6 +79,48 @@ export default function PayoutHistoryPage() {
   useEffect(() => {
     fetchPayouts();
   }, [fetchPayouts]);
+
+  // Handle Card Clicks (Navigation only)
+  const handleCardClick = (type: string) => {
+    switch (type) {
+      case 'earnings':
+        router.push('/owner/earnings');
+        break;
+      case 'paid':
+        router.push('/owner/paid-transfers');
+        break;
+      case 'pending':
+        router.push('/owner/pending-payouts');
+        break;
+      case 'failed':
+        router.push('/owner/failed-transfers');
+        break;
+    }
+  };
+
+  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
+    try {
+      setExporting(format);
+      toast.loading(`Preparing ${format.toUpperCase()} report...`, { id: 'export' });
+      
+      const filters = {
+        status: status || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined
+      };
+
+      console.log("EXPORT TRIGGERED", { format, filters });
+      console.log("CURRENT TABLE DATA (State):", payouts);
+
+      await downloadPayoutReport(format, filters);
+      toast.success(`${format.toUpperCase()} report downloaded!`, { id: 'export' });
+    } catch (error) {
+      console.error(`Export failed:`, error);
+      toast.error(`Export failed. Please try again.`, { id: 'export' });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -128,22 +182,82 @@ export default function PayoutHistoryPage() {
           </h1>
           <p className="mt-2 text-slate-500 font-medium">Track all settlements and transfers from the platform.</p>
         </div>
+
+        {/* EXPORT CARD */}
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-50 min-w-[320px]">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Export Reports</h4>
+            <div className="flex gap-2">
+               <button 
+                disabled={exporting !== null}
+                onClick={() => handleExport('excel')}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition hover:bg-emerald-100 disabled:opacity-50"
+                title="Export Excel"
+              >
+                {exporting === 'excel' ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /> : <FaFileExcel />}
+              </button>
+              <button 
+                disabled={exporting !== null}
+                onClick={() => handleExport('csv')}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition hover:bg-blue-100 disabled:opacity-50"
+                title="Export CSV"
+              >
+                {exporting === 'csv' ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /> : <FaFileCsv />}
+              </button>
+              <button 
+                disabled={exporting !== null}
+                onClick={() => handleExport('pdf')}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+                title="Export PDF"
+              >
+                {exporting === 'pdf' ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-600 border-t-transparent" /> : <FaFilePdf />}
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] font-bold text-slate-400 leading-tight">Exports will respect currently active filters and date ranges.</p>
+        </div>
       </div>
 
       {/* STATS GRID */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, index) => (
-          <div key={index} className="group relative overflow-hidden rounded-[2.5rem] bg-white p-8 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
-            <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl shadow-lg shadow-current/20 ${stat.color}`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-              <h3 className="mt-2 text-3xl font-black text-slate-900">{stat.value}</h3>
-              <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{stat.desc}</p>
-            </div>
-          </div>
-        ))}
+        {statCards.map((stat, index) => {
+          const isSelected = 
+            (stat.label.includes('Paid') && status === 'paid') ||
+            (stat.label.includes('Pending') && status === 'pending') ||
+            (stat.label.includes('Failed') && status === 'failed');
+
+          return (
+            <motion.div 
+              key={index} 
+              whileHover={{ scale: 1.02, translateY: -4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                if (stat.label.includes('Lifetime')) handleCardClick('earnings');
+                else if (stat.label.includes('Paid')) handleCardClick('paid');
+                else if (stat.label.includes('Pending')) handleCardClick('pending');
+                else if (stat.label.includes('Failed')) handleCardClick('failed');
+              }}
+              className={`group relative cursor-pointer overflow-hidden rounded-[2.5rem] p-8 shadow-sm transition-all hover:shadow-xl ${
+                isSelected ? 'ring-4 ring-blue-600/20 bg-blue-50/50' : 'bg-white'
+              }`}
+            >
+              <div className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl text-2xl shadow-lg shadow-current/20 ${stat.color}`}>
+                {stat.icon}
+              </div>
+              <div>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                <h3 className="mt-2 text-3xl font-black text-slate-900">{stat.value}</h3>
+                <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{stat.desc}</p>
+              </div>
+              
+              {isSelected && (
+                <div className="absolute top-6 right-6">
+                  <div className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* FILTERS */}
@@ -210,7 +324,7 @@ export default function PayoutHistoryPage() {
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hostel / Booking</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Reference</th>
+                <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destination / Ref</th>
                 <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
               </tr>
             </thead>
@@ -257,9 +371,7 @@ export default function PayoutHistoryPage() {
                       {getStatusBadge(payout.status)}
                     </td>
                     <td className="px-8 py-6">
-                      <p className="text-[10px] font-black text-slate-400 font-mono tracking-tighter break-all max-w-[120px]">
-                        {payout.transferReference || payout._id.slice(-8).toUpperCase()}
-                      </p>
+                      <PayoutDestinationInfo payout={payout} />
                     </td>
                     <td className="px-8 py-6 text-center">
                       <button 
@@ -314,16 +426,14 @@ export default function PayoutHistoryPage() {
                   {getStatusBadge(payout.status)}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="rounded-2xl bg-slate-50 p-4">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-2">Payout Destination</p>
+                    <PayoutDestinationInfo payout={payout} />
+                  </div>
                   <div className="rounded-2xl bg-slate-50 p-4">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Net Transfer</p>
                     <p className="text-lg font-black text-slate-900">GHS {payout.finalTransferAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                  </div>
-                  <div className="rounded-2xl bg-slate-50 p-4 overflow-hidden">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight mb-1">Reference</p>
-                    <p className="text-[10px] font-bold text-slate-700 font-mono break-all leading-tight">
-                      {payout.transferReference || payout._id.slice(-8).toUpperCase()}
-                    </p>
                   </div>
                 </div>
 

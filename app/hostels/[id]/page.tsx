@@ -25,15 +25,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     }
 
-    const title = `${hostel.name} in ${hostel.location} | GHS ${hostel.price} | Relaxly`;
-    const description = `Book ${hostel.name} in ${hostel.location} for GHS ${hostel.price}. Verified student accommodation with WiFi, security, water and electricity. Compare rooms and reserve online.`;
+    const locationStr = typeof hostel.location === 'object' 
+      ? `${hostel.location.city}, ${hostel.location.region}` 
+      : hostel.location;
+
+    const title = `${hostel.name} in ${locationStr} | GHS ${hostel.price} | Relaxly`;
+    const description = `Book ${hostel.name} in ${locationStr} for GHS ${hostel.price}. Verified student accommodation with WiFi, security, water and electricity. Compare rooms and reserve online.`;
     const image = hostel.displayImage || (hostel.images && hostel.images[0]);
     const seoUrl = getHostelSeoUrl(hostel);
 
     return {
       title,
       description,
-      keywords: [`${hostel.name}`, `${hostel.location} hostel`, "student hostel", "Ghana accommodation"],
+      keywords: [`${hostel.name}`, `${locationStr} hostel`, "student hostel", "Ghana accommodation"],
       alternates: {
         canonical: seoUrl,
       },
@@ -89,9 +93,12 @@ export default async function Page({ params }: PageProps) {
     
     // Simple related hostels logic: same location, excluding current hostel
     if (hostel) {
-      const currentHostelLocation = hostel.location;
+      const locationStr = typeof hostel.location === 'object' ? hostel.location.city : hostel.location;
       relatedHostels = (allHostelsData.hostels || [])
-        .filter((h: Hostel) => h.location === currentHostelLocation && h._id !== id)
+        .filter((h: Hostel) => {
+           const hLoc = typeof h.location === 'object' ? h.location.city : h.location;
+           return hLoc === locationStr && h._id !== id;
+        })
         .slice(0, 3);
     }
   } catch (error) {
@@ -99,6 +106,8 @@ export default async function Page({ params }: PageProps) {
   }
 
   // Structured Data (JSON-LD)
+  const locationStr = hostel ? (typeof hostel.location === 'object' ? `${hostel.location.address}, ${hostel.location.city}` : hostel.location) : '';
+
   const lodgingBusinessJsonLd = hostel ? {
     '@context': 'https://schema.org',
     '@type': 'LodgingBusiness',
@@ -108,7 +117,7 @@ export default async function Page({ params }: PageProps) {
     'url': `https://relaxlygh.com${getHostelSeoUrl(hostel)}`,
     'address': {
       '@type': 'PostalAddress',
-      'addressLocality': hostel.location,
+      'addressLocality': locationStr,
       'addressCountry': 'GH',
     },
     'priceRange': `GHS ${hostel.price}`,
@@ -141,8 +150,8 @@ export default async function Page({ params }: PageProps) {
       {
         '@type': 'ListItem',
         'position': 3,
-        'name': hostel.location,
-        'item': `https://relaxlygh.com/hostels/location/${hostel.location.toLowerCase().replace(/\s+/g, '-')}`
+        'name': typeof hostel.location === 'object' ? hostel.location.city : hostel.location,
+        'item': `https://relaxlygh.com/hostels/location/${(typeof hostel.location === 'object' ? hostel.location.city : hostel.location).toLowerCase().replace(/\s+/g, '-')}`
       },
       {
         '@type': 'ListItem',

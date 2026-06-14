@@ -3,6 +3,7 @@
 import {
   useEffect,
   useState,
+  useMemo,
 } from 'react';
 
 import Link from 'next/link';
@@ -26,6 +27,9 @@ import {
   FaBolt,
   FaTint,
   FaUserFriends,
+  FaWhatsapp,
+  FaEnvelope,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 
 import toast from 'react-hot-toast';
@@ -35,7 +39,7 @@ import ImageGallery from '../../../src/components/common/ImageGallery';
 import RoomCard from '../../../src/components/common/RoomCard';
 import HostelCard from '../../../src/components/home/HostelCard';
 
-import { getSingleHostel, getHostelRooms } from '../../../src/services/hostelService';
+import { getSingleHostel, getHostelRooms, getHostelContactDetails } from '../../../src/services/hostelService';
 
 import {
   useAuthStore,
@@ -59,31 +63,67 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
   const [hostel, setHostel] = useState<Hostel | null>(initialHostel);
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
   const [loading, setLoading] = useState(!initialHostel);
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  
+  // ROOM SELECTION STATE
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(
+    initialRooms.length > 0 ? initialRooms[0]._id : null
+  );
   const [isHighlighting, setIsHighlighting] = useState(false);
 
-  const selectedRoom = selectedRoomId 
-    ? rooms.find(r => r._id === selectedRoomId) || null 
-    : null;
+  // CONTACT GATING STATE
+  const [contactInfo, setContactInfo] = useState<any>(null);
+  const [isAccessLoading, setIsAccessLoading] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
-  // Calculate fees using backend provided fields
-  const totalPrice = selectedRoom ? (selectedRoom.totalPrice || selectedRoom.price) : 0;
+  // Derive active room data
+  const selectedRoom = useMemo(() => 
+    selectedRoomId ? rooms.find(r => r._id === selectedRoomId) || null : (rooms.length > 0 ? rooms[0] : null)
+  , [selectedRoomId, rooms]);
+
+  // Dynamic Data Bindings
+  const activePrice = selectedRoom ? (selectedRoom.totalPrice || selectedRoom.price) : (hostel?.price || 0);
+  const activeImages = selectedRoom?.images?.length ? selectedRoom.images : (hostel?.images || []);
+  const activeDescription = selectedRoom?.description || hostel?.description || '';
+  const activeAmenities = [
+    { id: 'wifi', label: 'Wi-Fi', icon: <FaWifi />, value: selectedRoom?.amenities?.some(a => a.toLowerCase().includes('wifi')) || hostel?.wifi },
+    { id: 'ac', label: 'Air Conditioning', icon: <FaSnowflake />, value: selectedRoom?.hasAC || hostel?.ac },
+    { id: 'security', label: '24/7 Security', icon: <FaShieldAlt />, value: hostel?.security },
+    { id: 'water', label: 'Constant Water', icon: <FaTint />, value: hostel?.water },
+    { id: 'electricity', label: 'Standby Power', icon: <FaBolt />, value: hostel?.electricity },
+  ];
+
+  const handleFetchContact = async () => {
+    if (!user) {
+      router.push('/register');
+      return;
+    }
+
+    try {
+      setIsAccessLoading(true);
+      setAccessError(null);
+      const data = await getHostelContactDetails(id);
+      setContactInfo(data);
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Book a room first to access host contact information';
+      setAccessError(message);
+      toast.error(message);
+    } finally {
+      setIsAccessLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedRoomId) {
       setIsHighlighting(true);
       const timer = setTimeout(() => setIsHighlighting(false), 2000);
-      
-      // On mobile, we might want to scroll to the selection info if needed, 
-      // but the bottom bar handles most of it.
-      // On desktop, the sticky card is already visible.
-      
       return () => clearTimeout(timer);
     }
   }, [selectedRoomId]);
 
   const handleReserve = () => {
-    if (!selectedRoomId) {
+    const roomId = selectedRoomId || (rooms.length > 0 ? rooms[0]._id : null);
+    
+    if (!roomId) {
       const roomsSection = document.getElementById('rooms');
       if (roomsSection) {
         roomsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -96,7 +136,7 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
       router.push('/register');
       return;
     }
-    router.push(`/booking/${selectedRoomId}`);
+    router.push(`/booking/${roomId}`);
   };
 
   useEffect(() => {
@@ -118,6 +158,9 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
   useEffect(() => {
     // If we have initial data, we don't need to fetch on mount
     if (initialHostel && initialRooms.length > 0) {
+      if (!selectedRoomId && initialRooms.length > 0) {
+        setSelectedRoomId(initialRooms[0]._id);
+      }
       return;
     }
 
@@ -132,7 +175,11 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
         if (hostelData) {
           setHostel(hostelData);
           const roomsData = await getHostelRooms(id);
-          setRooms(roomsData?.rooms || roomsData || []);
+          const fetchedRooms = roomsData?.rooms || roomsData || [];
+          setRooms(fetchedRooms);
+          if (fetchedRooms.length > 0) {
+            setSelectedRoomId(fetchedRooms[0]._id);
+          }
         } else {
           setHostel(null);
         }
@@ -198,14 +245,6 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
     );
   }
 
-  const hostelAmenities = [
-    { id: 'wifi', label: 'Wi-Fi', icon: <FaWifi />, value: hostel.wifi },
-    { id: 'ac', label: 'Air Conditioning', icon: <FaSnowflake />, value: hostel.ac },
-    { id: 'security', label: '24/7 Security', icon: <FaShieldAlt />, value: hostel.security },
-    { id: 'water', label: 'Constant Water', icon: <FaTint />, value: hostel.water },
-    { id: 'electricity', label: 'Standby Power', icon: <FaBolt />, value: hostel.electricity },
-  ];
-
   return (
     <main className="min-h-screen bg-slate-50 pb-24 overflow-x-hidden">
       {/* NAVIGATION & HERO HEADER */}
@@ -217,7 +256,9 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
           </Link>
           <div className="flex items-center gap-2 rounded-full bg-blue-100 px-4 sm:px-5 py-2 text-xs sm:text-sm font-black text-blue-700 uppercase tracking-tight">
             <FaMapMarkerAlt className="shrink-0" />
-            <span className="truncate">{hostel.location}</span>
+            <span className="truncate">
+              {typeof hostel.location === 'object' ? `${hostel.location.city}, ${hostel.location.region}` : hostel.location}
+            </span>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-4 sm:px-5 py-2 text-xs sm:text-sm font-black text-emerald-700 uppercase tracking-tight">
             <FaCheckCircle className="shrink-0" />
@@ -234,19 +275,54 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                 {hostel.name}
               </h1>
               
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 uppercase tracking-tight">
-                  <FaBed className="shrink-0" />
-                  <span>{rooms.length} Room Types</span>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* ROOM SELECTOR DROPDOWN */}
+                {rooms.length > 1 ? (
+                  <div className="relative inline-block">
+                    <select
+                      value={selectedRoomId || ''}
+                      onChange={(e) => setSelectedRoomId(e.target.value)}
+                      className="appearance-none rounded-xl bg-slate-900 px-6 py-2.5 pr-10 text-xs font-black text-white uppercase tracking-tight outline-none ring-offset-2 focus:ring-2 focus:ring-blue-600 transition-all cursor-pointer shadow-lg"
+                    >
+                      <option disabled value="">Select Room</option>
+                      {rooms.map(r => (
+                        <option key={r._id} value={r._id} className="text-slate-900 bg-white font-bold">
+                          {r.roomType} - GHS {r.totalPrice || r.price}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white">
+                      <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 uppercase tracking-tight">
+                    <FaBed className="shrink-0" />
+                    <span>{rooms.length === 1 ? '1 Room Variant' : 'No Variants'}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white uppercase tracking-tight shadow-md">
+                  <span>GHS {activePrice}</span>
                 </div>
-                <div className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white uppercase tracking-tight">
-                  <span>From GHS {hostel.price || (rooms.length > 0 ? Math.min(...rooms.map(r => r.price)) : 'N/A')}</span>
-                </div>
+                
+                {selectedRoom && (
+                  <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 uppercase tracking-tight border border-emerald-100">
+                    <span>{selectedRoom.availableBeds} Available</span>
+                  </div>
+                )}
               </div>
 
-              <p className="text-lg sm:text-xl leading-relaxed text-slate-600 font-medium max-w-3xl">
-                {hostel.description?.substring(0, 250)}...
-              </p>
+              <motion.p 
+                key={selectedRoomId}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-lg sm:text-xl leading-relaxed text-slate-600 font-medium max-w-3xl"
+              >
+                {activeDescription?.substring(0, 250)}...
+              </motion.p>
             </div>
           </div>
 
@@ -258,30 +334,46 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                   <FaUniversity />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Nearby Institution</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Closest Institution</p>
                   <p className="text-lg font-black text-slate-900 truncate">
-                    {hostel.nearbyUniversities?.length 
-                      ? hostel.nearbyUniversities[0] 
-                      : hostel.university?.name || 'N/A'}
+                    {hostel.nearestInstitution?.name || 
+                     (hostel.nearbyUniversities?.length ? hostel.nearbyUniversities[0] : hostel.university?.name) || 
+                     'N/A'}
                   </p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Distance</p>
-                  <p className="text-sm font-black text-slate-900">~1.2 km</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Walking Time</p>
-                  <p className="text-sm font-black text-slate-900">~15 mins</p>
-                </div>
+                {hostel.nearestInstitution ? (
+                  <>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Distance</p>
+                      <p className="text-sm font-black text-slate-900">~{hostel.nearestInstitution.distanceKm} km</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Walking Time</p>
+                      <p className="text-sm font-black text-slate-900">~{hostel.nearestInstitution.walkingMinutes} mins</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Proximity Info</p>
+                    <p className="text-sm font-bold text-slate-400 italic">Distance unavailable</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        <ImageGallery images={hostel.images || []} alt={hostel.name} layout="grid" />
+        <motion.div 
+          key={selectedRoomId}
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <ImageGallery images={activeImages} alt={selectedRoom?.roomType || hostel.name} layout="grid" />
+        </motion.div>
       </section>
 
       {/* CONTENT GRID */}
@@ -294,21 +386,26 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
             <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
               <div className="mb-6 sm:mb-8 flex items-center gap-4">
                 <div className="h-8 sm:h-10 w-2 rounded-full bg-blue-600" />
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">About this Hostel</h2>
+                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">About this {selectedRoom ? 'Room' : 'Hostel'}</h2>
               </div>
-              <p className="text-lg sm:text-xl leading-relaxed text-slate-600 font-medium whitespace-pre-wrap">
-                {hostel.description || "Experience top-tier student living at its finest. This hostel offers a perfect blend of comfort, security, and proximity to campus, ensuring you can focus on your studies while enjoying a vibrant community life."}
-              </p>
+              <motion.p 
+                key={selectedRoomId}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-lg sm:text-xl leading-relaxed text-slate-600 font-medium whitespace-pre-wrap"
+              >
+                {activeDescription || "Experience top-tier student living at its finest. This property offers a perfect blend of comfort, security, and proximity to campus."}
+              </motion.p>
             </div>
 
             {/* AMENITIES SECTION */}
             <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
               <div className="mb-8 sm:mb-10 flex items-center gap-4">
                 <div className="h-8 sm:h-10 w-2 rounded-full bg-blue-600" />
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Building Amenities</h2>
+                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Building & Room Features</h2>
               </div>
               <div className="grid gap-4 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
-                {hostelAmenities.map((item) => (
+                {activeAmenities.map((item) => (
                   <div key={item.id} className={`group flex flex-col items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 transition-all duration-300 ${
                     item.value 
                       ? 'bg-blue-50 text-blue-700 border-2 border-blue-100' 
@@ -409,6 +506,69 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                   </div>
                 </div>
               </div>
+
+              {/* WHERE YOU'LL BE SECTION */}
+              <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100 md:col-span-2">
+                <div className="mb-8 flex flex-col gap-2">
+                  <h3 className="text-2xl sm:text-3xl font-black text-slate-900">Where You&apos;ll Be</h3>
+                  <p className="flex items-center gap-2 text-slate-500 font-medium">
+                    <FaMapMarkerAlt className="text-blue-600" />
+                    {typeof hostel.location === 'object' ? `${hostel.location.city}, ${hostel.location.region}` : hostel.location}
+                  </p>
+                </div>
+
+                <div className="overflow-hidden rounded-[2rem] border-2 border-slate-50 bg-slate-100 shadow-inner">
+                  {(() => {
+                    // Resolve coordinates with robust fallbacks
+                    // The backend now exposes these at the root level for easy access
+                    const rawLat = (hostel as any).latitude || 
+                                   (hostel as any).locationDetails?.latitude || 
+                                   (typeof hostel.location === 'object' ? (hostel.location as any).latitude : null);
+                    
+                    const rawLng = (hostel as any).longitude || 
+                                   (hostel as any).locationDetails?.longitude || 
+                                   (typeof hostel.location === 'object' ? (hostel.location as any).longitude : null);
+
+                    const latitude = rawLat ? Number(rawLat) : null;
+                    const longitude = rawLng ? Number(rawLng) : null;
+
+                    if (latitude !== null && longitude !== null && !isNaN(latitude) && !isNaN(longitude)) {
+                      return (
+                        <div className="relative h-[300px] w-full sm:h-[450px]">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={`https://maps.google.com/maps?q=${latitude},${longitude}&hl=en&z=15&output=embed`}
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-2xl text-slate-300">
+                          <FaMapMarkerAlt />
+                        </div>
+                        <h4 className="text-lg font-black text-slate-400">Location information unavailable</h4>
+                        <p className="mt-1 text-xs font-medium text-slate-400">The property coordinates have not been provided by the host.</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-4">
+                  <div className="rounded-2xl bg-slate-50 px-6 py-4 border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Full Address</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {typeof hostel.location === 'object' ? hostel.location.address : hostel.location}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -436,13 +596,94 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                   </div>
                 </div>
 
-                <Link
-                  href={`/owners/${hostel.owner?._id}?hostel=${hostel._id}`}
-                  className="w-full flex items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 py-5 sm:py-6 text-base sm:text-lg font-black text-white transition-all hover:bg-slate-800 hover:scale-[1.02] active:scale-95 shadow-xl shadow-slate-200"
-                >
-                  <FaPhone className="text-lg sm:text-xl" />
-                  Contact Owner
-                </Link>
+                {/* ACTION AREA - BOOKING GATED */}
+                <div className="w-full">
+                  {!user ? (
+                    <button
+                      onClick={() => router.push('/login')}
+                      className="w-full flex items-center justify-center gap-3 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 py-5 sm:py-6 text-sm sm:text-base font-black text-white transition-all hover:bg-slate-800 active:scale-95 shadow-xl shadow-slate-200 px-4"
+                    >
+                      <FaShieldAlt className="text-blue-400" />
+                      Book a room to contact host
+                    </button>
+                  ) : contactInfo ? (
+                    <div className="space-y-4 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                       <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100 text-left">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                              <FaPhone />
+                            </div>
+                            <div>
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Phone Call</p>
+                              <p className="text-sm font-black text-slate-800">{contactInfo.phone}</p>
+                            </div>
+                          </div>
+                          
+                          {contactInfo.whatsapp && (
+                            <a 
+                              href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}`} 
+                              target="_blank"
+                              className="flex items-center gap-4 p-4 bg-emerald-50 rounded-[1.5rem] border border-emerald-100 text-left hover:bg-emerald-100 transition-colors group"
+                            >
+                              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-200">
+                                <FaWhatsapp />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-[8px] font-black text-emerald-600/60 uppercase tracking-widest">WhatsApp Messenger</p>
+                                <p className="text-sm font-black text-emerald-900">Start Conversation</p>
+                              </div>
+                            </a>
+                          )}
+
+                          <a 
+                            href={`mailto:${contactInfo.email}`}
+                            className="w-full flex items-center justify-center gap-3 rounded-[1.5rem] bg-slate-900 py-5 text-base font-black text-white hover:bg-slate-800 transition-all shadow-lg"
+                          >
+                            <FaEnvelope />
+                            Contact via Email
+                          </a>
+                          
+                          <Link
+                            href={`/owners/${hostel.owner?._id}?hostel=${hostel._id}`}
+                            className="w-full text-center py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition"
+                          >
+                            View Host Profile
+                          </Link>
+                       </div>
+                    </div>
+                  ) : isAccessLoading ? (
+                    <button
+                      disabled
+                      className="w-full flex items-center justify-center gap-3 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-100 py-5 sm:py-6 text-sm font-black text-slate-400 cursor-not-allowed"
+                    >
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+                      Checking access...
+                    </button>
+                  ) : accessError ? (
+                    <button
+                      onClick={() => {
+                        const roomsSection = document.getElementById('rooms');
+                        if (roomsSection) roomsSection.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="w-full flex flex-col items-center justify-center gap-1 rounded-[1.5rem] sm:rounded-[2.5rem] bg-rose-50 border-2 border-rose-100 py-5 sm:py-6 px-4 transition-all hover:bg-rose-100 group"
+                    >
+                      <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 mb-1">
+                        <FaShieldAlt /> Access Restricted
+                      </span>
+                      <span className="text-sm font-bold text-rose-900 text-center leading-tight group-hover:underline">
+                        Book a room to contact host
+                      </span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleFetchContact}
+                      className="w-full flex items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 py-5 sm:py-6 text-base sm:text-lg font-black text-white transition-all hover:bg-slate-800 hover:scale-[1.02] active:scale-95 shadow-xl shadow-slate-200"
+                    >
+                      <FaPhone className="text-lg sm:text-xl" />
+                      Contact Owner
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* GENDER & CAPACITY STATS */}
@@ -453,13 +694,19 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                     <span className="font-bold text-blue-100 opacity-80 uppercase text-[9px] sm:text-[10px] tracking-[0.2em]">Residency</span>
                     <div className="flex items-center gap-2 font-black text-sm sm:text-base">
                       <FaUserFriends />
-                      <span>{hostel.genderAllowed}</span>
+                      <span>{selectedRoom ? selectedRoom.genderAllocation : hostel.genderAllowed}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between border-b border-white/10 pb-3 sm:pb-4">
                     <span className="font-bold text-blue-100 opacity-80 uppercase text-[9px] sm:text-[10px] tracking-[0.2em]">Scale</span>
-                    <span className="font-black text-sm sm:text-base">{hostel.totalRooms} Room Variants</span>
+                    <span className="font-black text-sm sm:text-base">{rooms.length} Room Variants</span>
                   </div>
+                  {selectedRoom && (
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3 sm:pb-4">
+                      <span className="font-bold text-blue-100 opacity-80 uppercase text-[9px] sm:text-[10px] tracking-[0.2em]">Room Capacity</span>
+                      <span className="font-black text-sm sm:text-base">{selectedRoom.occupancyStyle}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-8 sm:mt-12 rounded-[1.5rem] sm:rounded-[2rem] bg-white/10 p-4 sm:p-6 backdrop-blur-md">
                   <p className="text-center text-[10px] sm:text-xs font-black uppercase tracking-widest opacity-80">Highly Rated Property</p>
@@ -477,10 +724,10 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Similar Hostels Nearby</h2>
-              <p className="mt-1 text-slate-500 font-medium text-lg">More great options in {hostel.location}</p>
+              <p className="mt-1 text-slate-500 font-medium text-lg">More great options in {typeof hostel.location === 'object' ? hostel.location.city : hostel.location}</p>
             </div>
             <Link 
-              href={`/hostels/location/${generateSlug(hostel.location)}`}
+              href={`/hostels/location/${generateSlug(typeof hostel.location === 'object' ? hostel.location.city : hostel.location)}`}
               className="hidden sm:block text-sm font-black text-blue-600 uppercase tracking-widest hover:text-blue-700"
             >
               View All
@@ -503,7 +750,7 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
             </span>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-black text-blue-600">
-                GHS {selectedRoom ? selectedRoom.price : (rooms.length > 0 ? Math.min(...rooms.map(r => r.price)) : 'N/A')}
+                GHS {activePrice}
               </span>
               <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
                 / {selectedRoom?.billingPeriod || 'Year'}

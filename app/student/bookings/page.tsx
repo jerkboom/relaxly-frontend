@@ -22,6 +22,8 @@ import {
   FaBars,
   FaFilter,
   FaTimes,
+  FaWhatsapp,
+  FaEnvelope,
 } from 'react-icons/fa';
 
 import { useNav } from '../layout';
@@ -45,6 +47,87 @@ import {
 
 import ConfirmationModal from '../../../src/components/common/ConfirmationModal';
 
+// --- TYPES ---
+
+interface HostContact {
+  ownerName: string;
+  phone: string;
+  whatsapp?: string;
+  email: string;
+}
+
+// --- COMPONENTS ---
+
+/**
+ * Renders secure host contact information directly from booking data.
+ * Backend ensures this is only present for eligible booking statuses.
+ */
+const HostContactCard = ({ contact }: { contact: HostContact | null | undefined }) => {
+  if (!contact) {
+    return (
+      <div className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-slate-50/20 p-5 grayscale opacity-70">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl text-slate-300 shadow-sm">
+          <FaPhoneAlt />
+        </div>
+
+        <div>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            Host Contact
+          </p>
+
+          <p className="font-black text-slate-400">
+            Locked
+          </p>
+
+          <p className="text-xs font-bold text-slate-400/60 leading-tight">
+            Book and complete payment to contact host
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[2rem] border border-blue-100 bg-blue-50/30 p-5 animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="flex items-center gap-4 border-b border-blue-50 pb-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl text-blue-600 shadow-sm">
+          <FaPhoneAlt />
+        </div>
+        <div className="flex-1">
+          <p className="mb-0.5 text-[8px] font-black uppercase tracking-widest text-blue-400">Verified Host</p>
+          <p className="text-sm font-black text-slate-900">{contact.ownerName}</p>
+        </div>
+        <a 
+          href={`tel:${contact.phone}`}
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+        >
+          <FaPhoneAlt className="text-sm" />
+        </a>
+      </div>
+      
+      <div className="flex gap-2">
+        {contact.whatsapp && (
+          <a 
+            href={`https://wa.me/${contact.whatsapp.replace(/\D/g, '')}`} 
+            target="_blank"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-600"
+          >
+            <FaWhatsapp className="text-sm" />
+            WhatsApp
+          </a>
+        )}
+        <a 
+          href={`mailto:${contact.email}`}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-black"
+        >
+          <FaEnvelope />
+          Email
+        </a>
+      </div>
+    </div>
+  );
+};
+
 interface Booking {
   _id: string;
 
@@ -53,7 +136,7 @@ interface Booking {
 
     name: string;
 
-    location: string;
+    location: string | { address: string; city: string; region: string };
 
     owner?: {
       _id?: string;
@@ -90,6 +173,9 @@ interface Booking {
   paymentReference?: string;
   bookingCode?: string;
   createdAt: string;
+
+  /** Enriched contact data provided by the backend for authorized bookings */
+  hostContact?: HostContact | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -605,9 +691,9 @@ export default function BookingsPage() {
 
                                 <span>
                                   {
-                                    booking
-                                      .hostel
-                                      .location
+                                    typeof booking.hostel.location === 'object'
+                                      ? `${booking.hostel.location.city}, ${booking.hostel.location.region}`
+                                      : booking.hostel.location
                                   }
                                 </span>
                               </div>
@@ -647,33 +733,31 @@ export default function BookingsPage() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-slate-50/50 p-5">
-                              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl text-blue-600 shadow-sm">
-                                <FaPhoneAlt />
+                            {['approved', 'checked_in', 'completed'].includes(booking.bookingStatus?.toLowerCase()) ? (
+                              <HostContactCard 
+                                contact={booking.hostContact} 
+                              />
+                            ) : (
+                              <div className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-slate-50/20 p-5 grayscale opacity-70">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl text-slate-300 shadow-sm">
+                                  <FaPhoneAlt />
+                                </div>
+
+                                <div>
+                                  <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                    Host Contact
+                                  </p>
+
+                                  <p className="font-black text-slate-400">
+                                    Locked
+                                  </p>
+
+                                  <p className="text-xs font-bold text-slate-400/60 leading-tight">
+                                    Book and complete payment to contact host
+                                  </p>
+                                </div>
                               </div>
-
-                              <div>
-                                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                  Host Contact
-                                </p>
-
-                                <p className="font-black text-slate-900">
-                                  {booking
-                                    .hostel
-                                    .owner
-                                    ?.phone ||
-                                    'No phone available'}
-                                </p>
-
-                                <p className="text-xs font-bold text-slate-400">
-                                  {booking
-                                    .hostel
-                                    .owner
-                                    ?.name ||
-                                    'Hostel Owner'}
-                                </p>
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </div>
 

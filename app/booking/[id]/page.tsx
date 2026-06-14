@@ -78,6 +78,7 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<Step>('review');
   const [checkoutState, setCheckoutState] = useState<CheckoutState>('idle');
+  const [refundPolicyAccepted, setRefundPolicyAccepted] = useState(false);
 
   const [publicSettings, setPublicSettings] = useState<{ serviceFee?: number; serviceFeePercent?: number } | null>(null);
 
@@ -178,7 +179,11 @@ export default function BookingPage() {
         }
 
         console.log('checkout triggered');
-        const data = await initializePayment(bookingId);
+        
+        const callbackUrl = `${window.location.origin}/payments/verify`;
+        console.log("PAYMENT CALLBACK URL", callbackUrl);
+
+        const data = await initializePayment(bookingId, callbackUrl);
         console.log('payment initialized');
 
         if (!data.authorization_url) {
@@ -287,6 +292,7 @@ export default function BookingPage() {
         room: room._id,
         hostel: typeof room.hostel === 'object' ? room.hostel._id : room.hostel,
         checkInDate: new Date().toISOString(),
+        refundPolicyAccepted,
       });
 
       setPendingBooking(bookingResponse);
@@ -551,7 +557,11 @@ export default function BookingPage() {
                               <span className="bg-slate-100 p-1.5 rounded-lg text-slate-400">
                                 <FaShieldAlt className="text-xs" />
                               </span>
-                              {hostelData?.location || 'Location details confirmed'}
+                              {hostelData?.location 
+                                ? (typeof hostelData.location === 'object' 
+                                    ? `${hostelData.location.city}, ${hostelData.location.region}` 
+                                    : hostelData.location)
+                                : 'Location details confirmed'}
                             </p>
                           </div>
 
@@ -706,13 +716,33 @@ export default function BookingPage() {
                             <p className="text-sm text-slate-500 font-medium">By continuing, a 15-minute hold will be placed on this room. You must complete the payment within this window to finalize your stay.</p>
                           </div>
                         </div>
+
+                        {/* REFUND POLICY CONSENT */}
+                        <div className="p-6 rounded-[2rem] bg-blue-50 border border-blue-100 transition-all hover:bg-blue-100/50">
+                          <label className="flex items-start gap-4 cursor-pointer group mb-3">
+                            <input
+                              type="checkbox"
+                              checked={refundPolicyAccepted}
+                              onChange={(e) => setRefundPolicyAccepted(e.target.checked)}
+                              className="mt-1 h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-transform group-active:scale-90"
+                            />
+                            <span className="text-sm font-bold text-blue-900/70 leading-relaxed group-hover:text-blue-900 transition-colors">
+                              I acknowledge the accommodation provider&apos;s 
+                              <Link href="/refund-policy" target="_blank" className="mx-1 text-blue-600 hover:underline decoration-2 underline-offset-4">cancellation and refund terms</Link> 
+                              and understand that Relaxly will support the refund process when applicable.
+                            </span>
+                          </label>
+                          <p className="text-[10px] font-medium text-blue-900/40 leading-relaxed pl-9">
+                            By continuing, you confirm that you have reviewed the applicable booking, cancellation, and refund terms associated with this accommodation.
+                          </p>
+                        </div>
                       </div>
 
                     </div>
 
                     <button
                       onClick={handleCreateBooking}
-                      disabled={checkoutState === 'processing'}
+                      disabled={checkoutState === 'processing' || !refundPolicyAccepted}
                       className="group w-full md:w-auto bg-slate-900 hover:bg-black text-white px-12 py-6 rounded-[2rem] text-xl font-black shadow-2xl shadow-slate-900/20 transition-all flex items-center justify-center gap-4 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {checkoutState === 'processing' ? (

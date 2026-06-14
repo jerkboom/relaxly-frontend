@@ -31,6 +31,7 @@ export interface RegisterData {
   university?: string;
   customUniversity?: string;
   studentId?: string;
+  agreeToPolicies: boolean;
 }
 
 interface LoginData {

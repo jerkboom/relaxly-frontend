@@ -283,11 +283,72 @@ export const updateBookingStatus =
  */
 export const checkInStudent =
   async (
+    bookingId: string,
+    assignmentData: { 
+      assignedRoomNumber: string, 
+      assignedBedNumber?: string, 
+      assignedFloorNumber?: string,
+      assignedBlock?: string,
+      occupancyNotes?: string 
+    }
+  ): Promise<Booking> => {
+    console.log("CHECK-IN PAYLOAD", assignmentData);
+
+    const response =
+      await API.patch(
+        `/bookings/${bookingId}/check-in`,
+        assignmentData
+      );
+
+    console.log("CHECK-IN RESPONSE", response.data);
+    return extractBooking(
+      response.data
+    );
+  };
+
+/**
+ * Updates an existing room assignment for a checked-in student.
+ * 
+ * Endpoint: PATCH /bookings/:id/room-assignment
+ */
+export const updateRoomAssignment =
+  async (
+    bookingId: string,
+    assignmentData: { 
+      assignedRoomNumber: string, 
+      assignedBedNumber?: string, 
+      assignedFloorNumber?: string,
+      assignedBlock?: string,
+      occupancyNotes?: string 
+    }
+  ): Promise<Booking> => {
+    console.log("ROOM ASSIGNMENT PAYLOAD", assignmentData);
+
+    const response =
+      await API.patch(
+        `/bookings/${bookingId}/room-assignment`,
+        assignmentData
+      );
+
+    console.log("ROOM ASSIGNMENT RESPONSE", response.data);
+    return extractBooking(
+      response.data
+    );
+  };
+
+/**
+ * Marks a student as checked-out from the hostel.
+ * Releases the occupancy record.
+ * 
+ * Endpoint: PATCH /bookings/:id/check-out
+ */
+export const checkOutStudent =
+  async (
     bookingId: string
   ): Promise<Booking> => {
     const response =
       await API.patch(
-        `/bookings/${bookingId}/check-in`
+        `/bookings/${bookingId}/check-out`
       );
 
     return extractBooking(

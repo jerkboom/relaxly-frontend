@@ -32,7 +32,13 @@ export default function CreateHostel() {
     name: '',
     description: '',
     nearbyUniversities: '',
-    location: '',
+    location: {
+      address: '',
+      city: '',
+      region: '',
+      latitude: '',
+      longitude: '',
+    },
     price: '',
     pricingType: 'semester',
     totalRooms: '',
@@ -53,6 +59,14 @@ export default function CreateHostel() {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (['address', 'city', 'region', 'latitude', 'longitude'].includes(name)) {
+      setFormData(prev => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          [name]: value
+        }
+      }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -68,8 +82,22 @@ export default function CreateHostel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.nearbyUniversities || !formData.location || !formData.price) {
+    if (!formData.name || !formData.nearbyUniversities || !formData.location.address || !formData.price) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // VALIDATION: GPS Coordinates
+    const lat = formData.location.latitude ? Number(formData.location.latitude) : null;
+    const lng = formData.location.longitude ? Number(formData.location.longitude) : null;
+
+    if (lat !== null && (lat < -90 || lat > 90)) {
+      toast.error('Latitude must be between -90 and 90');
+      return;
+    }
+
+    if (lng !== null && (lng < -180 || lng > 180)) {
+      toast.error('Longitude must be between -180 and 180');
       return;
     }
 
@@ -91,6 +119,11 @@ export default function CreateHostel() {
     try {
       await createHostel({
         ...formData,
+        location: {
+          ...formData.location,
+          latitude: lat !== null ? lat : undefined,
+          longitude: lng !== null ? lng : undefined,
+        },
         price: Number(formData.price),
         totalRooms: Number(formData.totalRooms) || 0,
         availableRooms: Number(formData.availableRooms) || 0,
@@ -168,20 +201,110 @@ export default function CreateHostel() {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <label htmlFor="location" className="text-sm font-bold text-slate-700">Physical Address *</label>
+              <label htmlFor="address" className="text-sm font-bold text-slate-700">Physical Address *</label>
               <div className="relative">
                 <FaMapMarkerAlt className="absolute top-4 left-4 text-slate-400" />
                 <input
                   type="text"
-                  id="location"
-                  name="location"
-                  value={formData.location}
+                  id="address"
+                  name="address"
+                  value={formData.location.address}
                   onChange={handleChange}
                   placeholder="e.g. Plot 45, University Main Road, East Campus"
                   className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="city" className="text-sm font-bold text-slate-700">City *</label>
+              <div className="relative">
+                <FaMapMarkerAlt className="absolute top-4 left-4 text-slate-400" />
+                <input
+                  type="text"
+                  id="city"
+                  name="city"
+                  value={formData.location.city}
+                  onChange={handleChange}
+                  placeholder="e.g. Accra"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="region" className="text-sm font-bold text-slate-700">Region *</label>
+              <div className="relative">
+                <FaMapMarkerAlt className="absolute top-4 left-4 text-slate-400" />
+                <input
+                  type="text"
+                  id="region"
+                  name="region"
+                  value={formData.location.region}
+                  onChange={handleChange}
+                  placeholder="e.g. Greater Accra"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="latitude" className="text-sm font-bold text-slate-700">Latitude (GPS)</label>
+              <div className="relative">
+                <FaMapMarkerAlt className="absolute top-4 left-4 text-slate-400" />
+                <input
+                  type="number"
+                  step="any"
+                  id="latitude"
+                  name="latitude"
+                  value={formData.location.latitude}
+                  onChange={handleChange}
+                  placeholder="e.g. 5.6037"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="longitude" className="text-sm font-bold text-slate-700">Longitude (GPS)</label>
+              <div className="relative">
+                <FaMapMarkerAlt className="absolute top-4 left-4 text-slate-400" />
+                <input
+                  type="number"
+                  step="any"
+                  id="longitude"
+                  name="longitude"
+                  value={formData.location.longitude}
+                  onChange={handleChange}
+                  placeholder="e.g. -0.1870"
+                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* LOCATION PREVIEW */}
+            <div className="md:col-span-2 rounded-2xl bg-blue-50/50 p-6 border border-blue-100">
+               <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 mb-3 flex items-center gap-2">
+                 <FaMapMarkerAlt /> Location Preview
+               </h4>
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Latitude</p>
+                    <p className="text-sm font-black text-slate-700">{formData.location.latitude || 'Not Set'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Longitude</p>
+                    <p className="text-sm font-black text-slate-700">{formData.location.longitude || 'Not Set'}</p>
+                  </div>
+               </div>
+               {formData.location.latitude && formData.location.longitude && (
+                 <p className="mt-3 text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                   <FaCheckCircle className="text-[8px]" /> Valid GPS coordinates provided.
+                 </p>
+               )}
             </div>
 
             <div className="space-y-2 md:col-span-2">

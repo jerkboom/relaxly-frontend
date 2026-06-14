@@ -58,6 +58,7 @@ export default function RegisterPage() {
       university: '',
       customUniversity: '',
       studentId: '',
+      agreeToPolicies: false,
     });
 
   const handleChange = (
@@ -65,9 +66,12 @@ export default function RegisterPage() {
       HTMLInputElement | HTMLSelectElement
     >
   ) => {
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: val,
     });
   };
 
@@ -100,24 +104,25 @@ export default function RegisterPage() {
     }
 
     try {
-      setLoading(true);
+    setLoading(true);
 
-      const payload: RegisterData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        gender: formData.gender,
-        phone: formData.phone,
-        role: formData.role as "student" | "owner",        // @ts-ignore
-        accessCode: formData.ownerAccessCode,
-        university: formData.role === 'student' && formData.university !== 'other' ? formData.university : undefined,
-        customUniversity: formData.role === 'student' && formData.university === 'other' ? formData.customUniversity : undefined,
-        studentId: formData.role === 'student' ? formData.studentId : undefined,
-      };
+    const payload: RegisterData = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      gender: formData.gender,
+      phone: formData.phone,
+      role: formData.role as "student" | "owner",        // @ts-ignore
+      accessCode: formData.ownerAccessCode,
+      university: formData.role === 'student' ? formData.university : undefined,
+      customUniversity: formData.role === 'student' && formData.university === 'other' ? formData.customUniversity : undefined,
+      studentId: formData.role === 'student' ? formData.studentId : undefined,
+      agreeToPolicies: formData.agreeToPolicies,
+    };
 
-      if (formData.role === 'owner') {
-        payload.governmentIdUrl = formData.governmentIdUrl;
-      }
+    if (formData.role === 'owner') {
+      payload.governmentIdUrl = formData.governmentIdUrl;
+    }
 
       const response =
         await registerUser(payload);
@@ -478,10 +483,32 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          {/* LEGAL CONSENT */}
+          <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                name="agreeToPolicies"
+                checked={formData.agreeToPolicies}
+                onChange={handleChange}
+                required
+                className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <span className="text-xs sm:text-sm text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors">
+                I have read and agree to the 
+                <Link href="/terms-and-conditions" target="_blank" className="mx-1 font-bold text-blue-600 hover:underline">Terms & Conditions</Link>, 
+                <Link href="/privacy-policy" target="_blank" className="mx-1 font-bold text-blue-600 hover:underline">Privacy Policy</Link>, 
+                and 
+                <Link href="/refund-policy" target="_blank" className="mx-1 font-bold text-blue-600 hover:underline">Refund Policy</Link> 
+                of Relaxly.
+              </span>
+            </label>
+          </div>
+
           {/* BUTTON */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !formData.agreeToPolicies}
             className="flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 py-4 sm:py-5 text-base sm:text-lg font-bold text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {loading

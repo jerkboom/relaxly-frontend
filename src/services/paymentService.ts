@@ -36,29 +36,38 @@ const getPaymentErrorMessage = (error: unknown) => {
  * This should be called after a booking snapshot has been created.
  *
  * @param bookingId - The unique ID of the booking to pay for.
+ * @param callbackUrl - Optional custom callback URL for payment verification.
  * @returns An object containing the Paystack authorization URL and reference.
  * @throws Error with a specific message if initialization fails.
  */
-export const initializePayment =
-  async (
-    bookingId: string
-  ): Promise<InitializePaymentResponse> => {
-    try {
-      const response = await API.post(
-        '/payments/initialize',
-        { bookingId }
-      );
+ export const initializePayment =
+ async (
+   bookingId: string,
+   callbackUrl?: string
+ ): Promise<InitializePaymentResponse> => {
+   try {
+     const payload = { 
+       bookingId,
+       callback_url: callbackUrl
+     };
 
-      const payload = response.data?.data || response.data;
+     console.log("INITIALIZE PAYMENT PAYLOAD", payload);
+
+     const response = await API.post(
+       '/payments/initialize',
+       payload
+     );
+
+     const data = response.data?.data || response.data;
 
       return {
         authorization_url:
-          payload.authorization_url ||
-          payload.authorizationUrl,
+          data.authorization_url ||
+          data.authorizationUrl,
         access_code:
-          payload.access_code ||
-          payload.accessCode,
-        reference: payload.reference,
+          data.access_code ||
+          data.accessCode,
+        reference: data.reference,
       };
     } catch (error) {
       throw new Error(

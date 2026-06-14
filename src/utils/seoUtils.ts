@@ -2,10 +2,15 @@
  * Normalizes location names to fix common misspellings and formatting issues.
  * Ensures consistent SEO slugs and page titles.
  */
-export const normalizeLocation = (location: string): string => {
+export const normalizeLocation = (location: any): string => {
   if (!location) return '';
   
-  const loc = location.trim().toLowerCase();
+  // Handle both string and structured location objects
+  const locationString = typeof location === 'object' 
+    ? (location.city || location.address || '') 
+    : String(location);
+  
+  const loc = locationString.trim().toLowerCase();
   
   // Mapping of common misspellings/variations to canonical names
   const mapping: Record<string, string> = {
@@ -18,13 +23,13 @@ export const normalizeLocation = (location: string): string => {
     'legon-accra': 'Legon',
   };
   
-  return mapping[loc] || location.trim();
+  return mapping[loc] || locationString.trim();
 };
 
 /**
  * Utility to generate SEO-friendly slugs from strings.
  */
-export const generateSlug = (text: string): string => {
+export const generateSlug = (text: any): string => {
   const normalized = normalizeLocation(text);
   return normalized
     .toString()
@@ -41,7 +46,7 @@ export const generateSlug = (text: string): string => {
  * Generates a hybrid SEO URL for a hostel.
  * Format: [name]-[location]-[id]
  */
-export const getHostelSeoUrl = (hostel: { _id: string; name: string; location?: string }): string => {
+export const getHostelSeoUrl = (hostel: { _id: string; name: string; location?: any }): string => {
   const nameSlug = generateSlug(hostel.name);
   const locationSlug = hostel.location ? generateSlug(hostel.location) : '';
   const slugBase = locationSlug ? `${nameSlug}-${locationSlug}` : nameSlug;

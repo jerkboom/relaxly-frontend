@@ -263,6 +263,17 @@ export const deleteRoom = async (id: string) => {
 };
 
 /**
+ * Retrieves gated owner contact details for a hostel.
+ * Requires the student to have a valid booking.
+ * 
+ * Endpoint: GET /hostels/:id/contact
+ */
+export const getHostelContactDetails = async (id: string) => {
+  const response = await API.get(`/hostels/${id}/contact`);
+  return response.data?.data || response.data;
+};
+
+/**
  * Uploads media files (images) for hostels or rooms.
  * 
  * Endpoint: POST /upload

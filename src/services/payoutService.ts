@@ -20,6 +20,14 @@ export interface Payout {
       name: string;
     };
   };
+  
+  // Destination Details
+  transferMethod?: 'momo' | 'bank';
+  provider?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountName?: string;
+
   amount: number;
   commissionAmount: number;
   paystackFee: number;

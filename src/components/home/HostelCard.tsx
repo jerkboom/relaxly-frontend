@@ -70,7 +70,11 @@ export default function HostelCard({
 
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-slate-500">
             <FaMapMarkerAlt className="text-blue-600 shrink-0" />
-            <span className="truncate">{hostel.location}</span>
+            <span className="truncate">
+              {typeof hostel.location === 'object' 
+                ? `${hostel.location.city}, ${hostel.location.region}`
+                : hostel.location}
+            </span>
           </div>
 
           <div className="mb-6 flex flex-wrap gap-2">
