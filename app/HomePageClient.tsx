@@ -10,7 +10,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -20,6 +20,7 @@ import {
   FaMapMarkerAlt,
   FaShieldAlt,
   FaWifi,
+  FaSearch
 } from 'react-icons/fa';
 import HostelCard from '../src/components/home/HostelCard';
 import UniversityCard from '../src/components/home/UniversityCard';
@@ -92,6 +93,25 @@ export default function HomePageClient() {
   const [searchQuery, setSearchQuery] = useState('');
   const [universityQuery, setUniversityQuery] = useState('');
   const [budgetQuery, setBudgetQuery] = useState('');
+
+  /** 
+   * Reactive Filtering: 
+   * Filters the fetched hostels locally for instant feedback on the landing page.
+   */
+  const filteredHostels = useMemo(() => {
+    if (!hostels) return [];
+    
+    return hostels.filter(hostel => {
+      const matchesSearch = !searchQuery.trim() || 
+        hostel.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const hostelUni = typeof hostel.university === 'object' ? hostel.university?.name : '';
+      const matchesUniversity = !universityQuery.trim() || 
+        (hostelUni && hostelUni.toLowerCase().includes(universityQuery.toLowerCase()));
+
+      return matchesSearch && matchesUniversity;
+    });
+  }, [hostels, searchQuery, universityQuery]);
 
   /**
    * Data Lifecycle:
@@ -196,98 +216,151 @@ export default function HomePageClient() {
       </header>
 
       {/* HERO SECTION - Landing impact and quick discovery */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white pt-[72px] sm:pt-[88px]">
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white pt-[72px] sm:pt-[88px] lg:pb-32">
         <div className="absolute inset-0 bg-black/20" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 lg:gap-16 px-4 sm:px-6 py-12 sm:py-24 md:grid-cols-2 md:items-center">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <p className="mb-4 inline-block rounded-full bg-white/20 px-4 py-2 text-xs sm:text-sm font-medium backdrop-blur">
-              #1 Hostel Booking Platform For Students
-            </p>
-
-            <h1 className="mb-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
-              Find The Perfect Hostel Near Your University
-            </h1>
-
-            <p className="mb-8 max-w-xl text-base sm:text-lg text-blue-100">
-              Search, compare, book, and pay for verified student hostels across
-              Ghana.
-            </p>
-
-            <div className="flex flex-wrap gap-4">
-              <Link
-                href="/hostels"
-                className="w-full sm:w-auto text-center rounded-2xl bg-white px-7 py-4 font-semibold text-blue-700 transition hover:scale-105"
-              >
-                Explore Hostels
-              </Link>
-
-              <Link
-                href="/register"
-                className="w-full sm:w-auto text-center rounded-2xl border border-white/40 px-7 py-4 font-semibold transition hover:bg-white/10"
-              >
-                Create Account
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* Branded Building Image with Location Badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative"
-          >
-            <img
-              src="/images/relaxly-building.png"
-              alt="Relaxly Hostel Building"
-              className="h-64 sm:h-[400px] md:h-[550px] w-full rounded-3xl object-cover shadow-2xl"
-            />
-
-            <div className="absolute -bottom-4 sm:-bottom-6 left-4 sm:left-6 rounded-2xl bg-white p-3 sm:p-5 text-gray-900 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <FaMapMarkerAlt className="text-blue-600 shrink-0" />
-                <div>
-                  <p className="font-bold text-sm sm:text-base">University of Ghana</p>
-                  <p className="text-xs sm:text-sm text-gray-500">
-                    Nearby hostels available
-                  </p>
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-12 lg:py-0 flex flex-col">
+          
+          {/* DESKTOP SEARCH WIDGET - Precision Spacing & Proportions */}
+          <div className="hidden lg:block mt-8 mb-12">
+            <div className="rounded-3xl bg-white p-5 shadow-2xl border border-slate-100">
+              <div className="grid grid-cols-4 gap-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search hostel"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-14 rounded-2xl border px-5 outline-none focus:border-blue-500 transition-colors font-semibold text-slate-900"
+                  />
                 </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="University"
+                    value={universityQuery}
+                    onChange={(e) => setUniversityQuery(e.target.value)}
+                    className="w-full h-14 rounded-2xl border px-6 outline-none focus:border-blue-500 transition-colors font-semibold text-slate-900"
+                  />
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Budget"
+                    value={budgetQuery}
+                    onChange={(e) => setBudgetQuery(e.target.value)}
+                    className="w-full h-14 rounded-2xl border px-6 outline-none focus:border-blue-500 transition-colors font-semibold text-slate-900"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSearch}
+                  className="w-full h-14 rounded-2xl bg-blue-600 px-6 font-semibold text-white hover:bg-blue-700 transition shadow-lg shadow-blue-200"
+                >
+                  Search
+                </button>
               </div>
             </div>
-          </motion.div>
+          </div>
+
+          <div className="grid gap-10 lg:gap-16 lg:py-12 md:grid-cols-2 md:items-center">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <p className="mb-4 inline-block rounded-full bg-white/20 px-4 py-2 text-xs sm:text-sm font-medium backdrop-blur">
+                #1 Hostel Booking Platform For Students
+              </p>
+
+              <h1 className="mb-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
+                Find The Perfect Hostel Near Your University
+              </h1>
+
+              <p className="mb-8 max-w-xl text-base sm:text-lg text-blue-100">
+                Search, compare, book, and pay for verified student hostels across
+                Ghana.
+              </p>
+
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  href="/hostels"
+                  className="w-full sm:w-auto text-center rounded-2xl bg-white px-7 py-4 font-semibold text-blue-700 transition hover:scale-105"
+                >
+                  Explore Hostels
+                </Link>
+
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto text-center rounded-2xl border border-white/40 px-7 py-4 font-semibold transition hover:bg-white/10"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </motion.div>
+
+            {/* Branded Building Image with Location Badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative"
+            >
+              <img
+                src="/images/relaxly-building.png"
+                alt="Relaxly Hostel Building"
+                className="h-64 sm:h-[400px] md:h-[500px] lg:h-[550px] w-full rounded-3xl object-cover shadow-2xl"
+              />
+
+              <div className="absolute -bottom-4 sm:-bottom-6 left-4 sm:left-6 rounded-2xl bg-white p-3 sm:p-5 text-gray-900 shadow-2xl">
+                <div className="flex items-center gap-3">
+                  <FaMapMarkerAlt className="text-blue-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-sm sm:text-base">University of Ghana</p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      Nearby hostels available
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* SEARCH WIDGET - Higher prominence for discovery */}
-      <section className="relative z-20 mx-auto -mt-8 sm:-mt-12 max-w-6xl px-4 sm:px-6">
+      {/* MOBILE SEARCH WIDGET - Positioned below Hero */}
+      <section className="relative z-20 mx-auto -mt-10 sm:-mt-12 lg:hidden max-w-6xl px-4 sm:px-6">
         <div className="rounded-3xl bg-white p-4 sm:p-6 shadow-2xl border border-slate-100">
-          <div className="grid gap-3 sm:gap-5 md:grid-cols-4">
-            <input
-              type="text"
-              placeholder="Search hostel"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors"
-            />
+          <div className="grid gap-3 sm:gap-5 md:grid-cols-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search hostel"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors font-medium text-slate-900"
+              />
+            </div>
 
-            <input
-              type="text"
-              placeholder="University"
-              value={universityQuery}
-              onChange={(e) => setUniversityQuery(e.target.value)}
-              className="rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="University"
+                value={universityQuery}
+                onChange={(e) => setUniversityQuery(e.target.value)}
+                className="w-full rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors font-medium text-slate-900"
+              />
+            </div>
 
-            <input
-              type="text"
-              placeholder="Budget"
-              value={budgetQuery}
-              onChange={(e) => setBudgetQuery(e.target.value)}
-              className="rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Budget"
+                value={budgetQuery}
+                onChange={(e) => setBudgetQuery(e.target.value)}
+                className="w-full rounded-2xl border px-5 py-3 sm:py-4 outline-none focus:border-blue-500 transition-colors font-medium text-slate-900"
+              />
+            </div>
 
             <button
               onClick={handleSearch}
@@ -333,19 +406,21 @@ export default function HomePageClient() {
                 />
               ))}
             </div>
-          ) : hostels.length === 0 ? (
-            <div className="rounded-3xl bg-white p-8 sm:p-12 text-center shadow">
-              <h3 className="mb-3 text-xl sm:text-2xl font-bold">
-                No hostels available
+          ) : filteredHostels.length === 0 ? (
+            <div className="rounded-[3rem] bg-white p-12 sm:p-24 text-center shadow-sm border border-slate-100 flex flex-col items-center">
+              <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50 text-4xl text-slate-200">
+                <FaSearch />
+              </div>
+              <h3 className="mb-3 text-2xl sm:text-3xl font-black text-slate-900">
+                No hostels found
               </h3>
-
-              <p className="text-gray-500">
-                Hostels will appear here once added.
+              <p className="text-slate-500 font-medium max-w-md mx-auto">
+                We couldn't find any hostels matching "{searchQuery}" at {universityQuery || 'your university'}. Try a different search term.
               </p>
             </div>
           ) : (
             <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {(Array.isArray(hostels) ? hostels : [])
+              {filteredHostels
                 .slice(0, 6)
                 .map((hostel) => (
                   <HostelCard

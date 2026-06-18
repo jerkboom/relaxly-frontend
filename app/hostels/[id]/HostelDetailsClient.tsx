@@ -30,6 +30,18 @@ import {
   FaWhatsapp,
   FaEnvelope,
   FaExclamationTriangle,
+  FaToilet,
+  FaUtensils,
+  FaDesktop,
+  FaDoorClosed,
+  FaSun,
+  FaFan,
+  FaTv,
+  FaTshirt,
+  FaEye,
+  FaBroom,
+  FaHeart,
+  FaRegHeart,
 } from 'react-icons/fa';
 
 import toast from 'react-hot-toast';
@@ -40,6 +52,9 @@ import RoomCard from '../../../src/components/common/RoomCard';
 import HostelCard from '../../../src/components/home/HostelCard';
 
 import { getSingleHostel, getHostelRooms, getHostelContactDetails } from '../../../src/services/hostelService';
+import { AMENITIES, getAmenityById } from '../../../src/constants/amenities';
+import { useWishlistStore } from '../../../src/store/wishlistStore';
+import { useHistoryStore } from '../../../src/store/historyStore';
 
 import {
   useAuthStore,
@@ -55,13 +70,25 @@ interface HostelDetailsClientProps {
   relatedHostels?: Hostel[];
 }
 
+// ... (inside the component)
 export default function HostelDetailsClient({ id, initialHostel, initialRooms, relatedHostels = [] }: HostelDetailsClientProps) {
   const router = useRouter();
   const { user, hasHydrated } = useAuthStore();
+  const { toggleWishlist, isSaved } = useWishlistStore();
+  const { addToHistory } = useHistoryStore();
+  const saved = isSaved(id);
   const {  } = useSettingsStore();
 
   const [hostel, setHostel] = useState<Hostel | null>(initialHostel);
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
+
+  // Add to history on mount or when hostel data changes
+  useEffect(() => {
+    if (hostel) {
+      addToHistory(hostel);
+    }
+  }, [hostel, addToHistory]);
+
   const [loading, setLoading] = useState(!initialHostel);
   
   // ROOM SELECTION STATE
@@ -84,13 +111,48 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
   const activePrice = selectedRoom ? (selectedRoom.totalPrice || selectedRoom.price) : (hostel?.price || 0);
   const activeImages = selectedRoom?.images?.length ? selectedRoom.images : (hostel?.images || []);
   const activeDescription = selectedRoom?.description || hostel?.description || '';
-  const activeAmenities = [
-    { id: 'wifi', label: 'Wi-Fi', icon: <FaWifi />, value: selectedRoom?.amenities?.some(a => a.toLowerCase().includes('wifi')) || hostel?.wifi },
-    { id: 'ac', label: 'Air Conditioning', icon: <FaSnowflake />, value: selectedRoom?.hasAC || hostel?.ac },
-    { id: 'security', label: '24/7 Security', icon: <FaShieldAlt />, value: hostel?.security },
-    { id: 'water', label: 'Constant Water', icon: <FaTint />, value: hostel?.water },
-    { id: 'electricity', label: 'Standby Power', icon: <FaBolt />, value: hostel?.electricity },
-  ];
+  
+  // Combine fixed building features with dynamic room amenities
+  const activeAmenitiesList = useMemo(() => {
+    // 1. General Building Amenities (Hostel Level)
+    const buildingList: any[] = [];
+    AMENITIES.filter(a => a.appliesTo === 'hostel').forEach(config => {
+      const isSelected = hostel?.amenities?.includes(config.id);
+      // Fallback for legacy boolean flags
+      const isFlagged = (config.id === 'wifi' && hostel?.wifi) || 
+                       (config.id === 'security' && hostel?.security) ||
+                       (config.id === 'water_supply' && hostel?.water) ||
+                       (config.id === 'generator' && hostel?.electricity);
+      
+      if (isSelected || isFlagged) {
+        buildingList.push({ ...config, value: true });
+      }
+    });
+
+    // 2. Room-Specific Features (Selected Room Level)
+    const roomList: any[] = [];
+    const selectedAmenities = selectedRoom?.amenities || [];
+    
+    // Core room boolean flags (Map to master IDs)
+    if (selectedRoom?.hasAC) {
+      const config = getAmenityById('ac');
+      if (config) roomList.push({ ...config, value: true });
+    }
+    if (selectedRoom?.privateWashroom) {
+      const config = getAmenityById('private_washroom');
+      if (config) roomList.push({ ...config, value: true });
+    }
+
+    // Dynamic array selection
+    selectedAmenities.forEach(id => {
+      const config = getAmenityById(id);
+      if (config && !roomList.find(item => item.id === id)) {
+        roomList.push({ ...config, value: true });
+      }
+    });
+
+    return { building: buildingList, room: roomList };
+  }, [selectedRoom, hostel]);
 
   const handleFetchContact = async () => {
     if (!user) {
@@ -254,6 +316,22 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
           <Link href="/hostels" className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-blue-600">
             <FaArrowLeft className="text-lg sm:text-xl" />
           </Link>
+
+          {/* WISHLIST TOGGLE */}
+          <button 
+            onClick={() => toggleWishlist(id)}
+            className={`flex h-12 sm:h-14 px-6 items-center gap-3 rounded-2xl transition-all active:scale-95 shadow-sm ${
+              saved 
+                ? 'bg-rose-50 text-rose-600 border-2 border-rose-100' 
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {saved ? <FaHeart /> : <FaRegHeart />}
+            <span className="text-xs sm:text-sm font-black uppercase tracking-tight">
+              {saved ? 'Saved to Wishlist' : 'Save Hostel'}
+            </span>
+          </button>
+
           <div className="flex items-center gap-2 rounded-full bg-blue-100 px-4 sm:px-5 py-2 text-xs sm:text-sm font-black text-blue-700 uppercase tracking-tight">
             <FaMapMarkerAlt className="shrink-0" />
             <span className="truncate">
@@ -323,42 +401,87 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
               >
                 {activeDescription?.substring(0, 250)}...
               </motion.p>
+
+              {/* ROOM-SPECIFIC AMENITIES PREVIEW */}
+              {selectedRoom && selectedRoom.amenities && selectedRoom.amenities.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-wrap gap-2 pt-4"
+                >
+                  {selectedRoom.amenities.map((amenity, idx) => (
+                    <span 
+                      key={idx} 
+                      className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 border border-blue-200 shadow-sm"
+                    >
+                      <FaCheckCircle className="text-[10px]" /> {amenity}
+                    </span>
+                  ))}
+                </motion.div>
+              )}
             </div>
           </div>
 
-          {/* Right Side (30%) - Nearby Institution Card */}
+          {/* Right Side (30%) - Serves Students From Card */}
           <div className="lg:col-span-1">
-            <div className="rounded-3xl border bg-white shadow-sm p-6 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-2xl text-blue-600">
-                  <FaUniversity />
+            <div className="rounded-[2.5rem] border bg-white shadow-sm p-8 space-y-8 h-full flex flex-col justify-between">
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-6 w-1 rounded-full bg-blue-600" />
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase text-xs tracking-[0.2em]">Serves Students From</h3>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Closest Institution</p>
-                  <p className="text-lg font-black text-slate-900 truncate">
-                    {hostel.nearestInstitution?.name || 
-                     (hostel.nearbyUniversities?.length ? hostel.nearbyUniversities[0] : hostel.university?.name) || 
-                     'N/A'}
-                  </p>
+
+                {/* Primary University */}
+                <div className="space-y-3">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-3 py-1 text-[8px] font-black text-white shadow-lg shadow-blue-200">
+                    PRIMARY
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <FaUniversity className="text-blue-600 mt-1 shrink-0" />
+                    <h4 className="font-black text-slate-900 text-lg sm:text-xl leading-tight">
+                      {hostel.nearestUniversity || hostel.university?.name || 'N/A'}
+                    </h4>
+                  </div>
                 </div>
+                
+                {/* Nearby Universities Chips */}
+                {hostel.nearbyUniversities && hostel.nearbyUniversities.length > 0 && (
+                  <div className="pt-6 border-t border-slate-50 space-y-4">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Also Convenient For:</p>
+                    <div className="flex flex-wrap gap-2">
+                       {hostel.nearbyUniversities
+                         .filter(u => u !== (hostel.nearestUniversity || hostel.university?.name))
+                         .map((uni, idx) => (
+                           <span key={idx} className="bg-slate-50 text-slate-600 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight border border-slate-100 transition-colors hover:bg-white hover:border-blue-200">
+                             {uni}
+                           </span>
+                         ))
+                       }
+                       {(!hostel.nearbyUniversities || hostel.nearbyUniversities.filter(u => u !== (hostel.nearestUniversity || hostel.university?.name)).length === 0) && (
+                         <p className="text-[10px] font-bold text-slate-400 italic">No other nearby institutions listed</p>
+                       )}
+                    </div>
+                  </div>
+                )}
               </div>
               
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+              {/* Proximity Stats */}
+              <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
                 {hostel.nearestInstitution ? (
                   <>
-                    <div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Distance</p>
+                    <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Distance</p>
                       <p className="text-sm font-black text-slate-900">~{hostel.nearestInstitution.distanceKm} km</p>
                     </div>
-                    <div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Walking Time</p>
+                    <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-50">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Walking</p>
                       <p className="text-sm font-black text-slate-900">~{hostel.nearestInstitution.walkingMinutes} mins</p>
                     </div>
                   </>
                 ) : (
-                  <div className="col-span-2">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Proximity Info</p>
-                    <p className="text-sm font-bold text-slate-400 italic">Distance unavailable</p>
+                  <div className="col-span-2 py-3 bg-blue-50/50 rounded-2xl border border-blue-50 text-center">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Campus Reach</p>
+                    <p className="text-xs font-bold text-blue-400 italic">Standard campus proximity</p>
                   </div>
                 )}
               </div>
@@ -399,32 +522,55 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
             </div>
 
             {/* AMENITIES SECTION */}
-            <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
-              <div className="mb-8 sm:mb-10 flex items-center gap-4">
-                <div className="h-8 sm:h-10 w-2 rounded-full bg-blue-600" />
-                <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Building & Room Features</h2>
-              </div>
-              <div className="grid gap-4 sm:gap-6 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
-                {activeAmenities.map((item) => (
-                  <div key={item.id} className={`group flex flex-col items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 transition-all duration-300 ${
-                    item.value 
-                      ? 'bg-blue-50 text-blue-700 border-2 border-blue-100' 
-                      : 'bg-slate-50 text-slate-300 opacity-60 border-2 border-slate-100'
-                  }`}>
-                    <div className={`flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl text-2xl sm:text-3xl transition-transform group-hover:scale-110 ${
-                      item.value ? 'bg-white shadow-lg' : 'bg-slate-100'
-                    }`}>
-                      {item.icon}
+            <div className="space-y-8">
+              {/* Building Amenities */}
+              <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
+                <div className="mb-8 sm:mb-10 flex items-center gap-4">
+                  <div className="h-8 sm:h-10 w-2 rounded-full bg-blue-600" />
+                  <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Building Features</h2>
+                </div>
+                <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-3">
+                  {activeAmenitiesList.building.length > 0 ? (
+                    activeAmenitiesList.building.map((item: any) => (
+                      <div key={item.id} className="group flex flex-col items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 transition-all duration-300 bg-blue-50 text-blue-700 border-2 border-blue-100 hover:border-blue-300">
+                        <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl text-2xl sm:text-3xl transition-transform group-hover:scale-110 bg-white shadow-lg text-blue-600">
+                          {item.icon}
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-center">{item.label}</span>
+                        <span className="rounded-full bg-blue-600 px-2 sm:px-3 py-1 text-[8px] sm:text-[10px] font-black text-white">INCLUDED</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full py-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Essential utilities provided</p>
                     </div>
-                    <span className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-center">{item.label}</span>
-                    {item.value ? (
-                      <span className="rounded-full bg-blue-600 px-2 sm:px-3 py-1 text-[8px] sm:text-[10px] font-black text-white">ACTIVE</span>
-                    ) : (
-                      <span className="text-[8px] sm:text-[10px] font-black text-slate-400 text-center leading-tight">UNAVAILABLE</span>
-                    )}
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
+
+              {/* Room Specific Amenities */}
+              {activeAmenitiesList.room.length > 0 && (
+                <div className="rounded-[2.5rem] sm:rounded-[3.5rem] bg-white p-8 sm:p-12 shadow-sm border border-slate-100">
+                  <div className="mb-8 sm:mb-10 flex items-center gap-4">
+                    <div className="h-8 sm:h-10 w-2 rounded-full bg-emerald-500" />
+                    <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+                      Room Specifics 
+                      <span className="ml-4 text-sm font-bold text-slate-400 uppercase tracking-widest">({selectedRoom?.roomType})</span>
+                    </h2>
+                  </div>
+                  <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-3">
+                    {activeAmenitiesList.room.map((item: any) => (
+                      <div key={item.id} className="group flex flex-col items-center justify-center gap-3 sm:gap-4 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 transition-all duration-300 bg-emerald-50 text-emerald-700 border-2 border-emerald-100 hover:border-emerald-300">
+                        <div className="flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-xl sm:rounded-2xl text-2xl sm:text-3xl transition-transform group-hover:scale-110 bg-white shadow-lg text-emerald-600">
+                          {item.icon}
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-center">{item.label}</span>
+                        <span className="rounded-full bg-emerald-500 px-2 sm:px-3 py-1 text-[8px] sm:text-[10px] font-black text-white">IN-ROOM</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ROOMS LISTING - ANCHOR */}

@@ -603,19 +603,22 @@ export default function BookingPage() {
                           </div>
                         </div>
 
-                        {/* AMENITIES PREVIEW */}
+                        {/* AMENITIES PREVIEW - High Trust Signal */}
                         {room.amenities && room.amenities.length > 0 && (
                           <div className="mb-12">
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Room Amenities</h4>
-                            <div className="flex flex-wrap gap-3">
-                              {room.amenities.slice(0, 6).map((amenity, idx) => (
-                                <span key={idx} className="bg-white border border-slate-100 px-5 py-2.5 rounded-2xl text-sm font-bold text-slate-600 shadow-sm">
-                                  {amenity}
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-4">Included Room Amenities</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {room.amenities.slice(0, 12).map((amenity, idx) => (
+                                <span 
+                                  key={idx} 
+                                  className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 border border-blue-200 shadow-sm"
+                                >
+                                  <FaCheckCircle className="text-[10px]" /> {amenity}
                                 </span>
                               ))}
-                              {room.amenities.length > 6 && (
-                                <span className="bg-slate-50 border border-slate-100 px-5 py-2.5 rounded-2xl text-sm font-bold text-slate-400">
-                                  +{room.amenities.length - 6} more
+                              {room.amenities.length > 12 && (
+                                <span className="bg-slate-50 border border-slate-100 px-4 py-2 rounded-xl text-xs font-bold text-slate-400">
+                                  +{room.amenities.length - 12} more
                                 </span>
                               )}
                             </div>

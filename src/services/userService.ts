@@ -13,6 +13,7 @@ export interface UserProfile {
     _id: string;
     name: string;
   };
+  wishlist: string[];
 }
 
 export const getUserProfile = async (): Promise<UserProfile> => {
@@ -28,5 +29,15 @@ export const updateUserProfile = async (userData: Partial<UserProfile>): Promise
 
 export const getUserById = async (id: string): Promise<UserProfile> => {
   const response = await API.get(`/users/${id}`);
+  return response.data?.data || response.data;
+};
+
+export const toggleWishlist = async (hostelId: string): Promise<{ isSaved: boolean }> => {
+  const response = await API.post(`/users/wishlist/${hostelId}`);
+  return response.data?.data || response.data;
+};
+
+export const getWishlist = async (): Promise<any[]> => {
+  const response = await API.get('/users/wishlist');
   return response.data?.data || response.data;
 };

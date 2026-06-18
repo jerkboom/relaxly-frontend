@@ -14,6 +14,8 @@ import {
   FaArrowRight
 } from 'react-icons/fa';
 import { useAuthStore } from '../../store/authStore';
+import { useWishlistStore } from '../../store/wishlistStore';
+import { FaHeart } from 'react-icons/fa';
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ interface MobileSidebarProps {
 const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const { wishlistIds } = useWishlistStore();
 
   React.useEffect(() => {
     if (isOpen) {
@@ -38,6 +41,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
   const navigation = [
     { href: '/student/dashboard', icon: <FaHome />, label: 'Dashboard' },
     { href: '/student/bookings', icon: <FaCalendarAlt />, label: 'My Bookings' },
+    { href: '/saved-hostels', icon: <FaHeart />, label: 'Saved Hostels', badge: wishlistIds.length },
     { href: '/hostels', icon: <FaSearch />, label: 'Browse Hostels' },
     { href: '/profile', icon: <FaUserCircle />, label: 'My Profile' },
   ];
@@ -115,6 +119,11 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
                       <span className="text-xl">{item.icon}</span>
                       <span className="font-bold">{item.label}</span>
                     </div>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className={`flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[10px] font-black ${isActive ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'}`}>
+                        {item.badge}
+                      </span>
+                    )}
                     {isActive && <FaArrowRight className="text-sm opacity-50" />}
                   </Link>
                 );

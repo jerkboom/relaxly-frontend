@@ -22,6 +22,8 @@ import {
 } from 'react-icons/fa';
 import Link from 'next/link';
 import { getSingleHostel, updateHostel } from '../../../../../src/services/hostelService';
+import { UNIVERSITIES, normalizeUniversity } from '../../../../../src/constants/universities';
+import { HOSTEL_AMENITIES } from '../../../../../src/constants/amenities';
 import ImageUploader from '../../../../../src/components/owner/ImageUploader';
 import toast from 'react-hot-toast';
 
@@ -36,7 +38,8 @@ export default function EditHostel() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    nearbyUniversities: '',
+    primaryUniversity: '',
+    selectedUniversities: [] as string[],
     location: {
       address: '',
       city: '',
@@ -64,13 +67,9 @@ export default function EditHostel() {
         const hostelData = await getSingleHostel(id);
         
         if (hostelData) {
-          // Determine nearbyUniversities string
-          let uniString = '';
-          if (hostelData.nearbyUniversities?.length) {
-            uniString = hostelData.nearbyUniversities.join(', ');
-          } else if (hostelData.university?.name) {
-            uniString = hostelData.university.name;
-          }
+          // Normalize existing data
+          const primary = normalizeUniversity(hostelData.nearestUniversity || (hostelData.nearbyUniversities?.length ? hostelData.nearbyUniversities[0] : ''));
+          const nearby = (hostelData.nearbyUniversities || []).map((u: string) => normalizeUniversity(u)).filter((u: string) => u !== primary);
 
           // Handle potentially legacy location string
           let locationObj = {
@@ -96,7 +95,8 @@ export default function EditHostel() {
           setFormData({
             name: hostelData.name || '',
             description: hostelData.description || '',
-            nearbyUniversities: uniString,
+            primaryUniversity: primary,
+            selectedUniversities: nearby.slice(0, 4),
             location: locationObj,
             price: String(hostelData.price || ''),
             pricingType: hostelData.pricingType || 'semester',
@@ -144,6 +144,54 @@ export default function EditHostel() {
     }
   };
 
+  const setPrimaryUniversity = (uniName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      primaryUniversity: uniName,
+      // Automatically remove from nearby if it was there
+      selectedUniversities: prev.selectedUniversities.filter(u => u !== uniName)
+    }));
+  };
+
+  const toggleNearbyUniversity = (uniName: string) => {
+    setFormData(prev => {
+      if (prev.primaryUniversity === uniName) return prev;
+      
+      const isSelected = prev.selectedUniversities.includes(uniName);
+      if (!isSelected && prev.selectedUniversities.length >= 4) {
+        toast.error('You can select a maximum of 4 nearby universities.');
+        return prev;
+      }
+
+      return {
+        ...prev,
+        selectedUniversities: isSelected
+          ? prev.selectedUniversities.filter(u => u !== uniName)
+          : [...prev.selectedUniversities, uniName]
+      };
+    });
+  };
+
+  const toggleHostelAmenity = (amenityId: string) => {
+    setFormData(prev => {
+      const isSelected = prev.amenities.includes(amenityId);
+      const newAmenities = isSelected
+        ? prev.amenities.filter(id => id !== amenityId)
+        : [...prev.amenities, amenityId];
+      
+      const updates: any = { amenities: newAmenities };
+      
+      // Sync with legacy boolean flags
+      if (amenityId === 'wifi') updates.wifi = !isSelected;
+      if (amenityId === 'ac') updates.ac = !isSelected;
+      if (amenityId === 'security') updates.security = !isSelected;
+      if (amenityId === 'water_supply') updates.water = !isSelected;
+      if (amenityId === 'generator') updates.electricity = !isSelected;
+
+      return { ...prev, ...updates };
+    });
+  };
+
   const handleImagesUploaded = (urls: string[]) => {
     setFormData(prev => ({ 
       ...prev, 
@@ -154,8 +202,8 @@ export default function EditHostel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.nearbyUniversities || !formData.location.address || !formData.price) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name || !formData.primaryUniversity || !formData.location.address || !formData.price) {
+      toast.error('Please fill in all required fields and select a primary university');
       return;
     }
 
@@ -173,20 +221,6 @@ export default function EditHostel() {
       return;
     }
 
-    const universitiesArray = [
-      ...new Set(
-        formData.nearbyUniversities
-          .split(',')
-          .map((u) => u.trim())
-          .filter(Boolean)
-          .map(
-            (u) =>
-              u.charAt(0).toUpperCase() +
-              u.slice(1).toLowerCase()
-          )
-      ),
-    ];
-
     setLoading(true);
     try {
       await updateHostel(id, {
@@ -199,7 +233,8 @@ export default function EditHostel() {
         price: Number(formData.price),
         totalRooms: Number(formData.totalRooms) || 0,
         availableRooms: Number(formData.availableRooms) || 0,
-        nearbyUniversities: universitiesArray,
+        nearestUniversity: formData.primaryUniversity,
+        nearbyUniversities: formData.selectedUniversities,
       });
       toast.success('Hostel updated successfully!');
       router.push('/owner/hostels');
@@ -263,21 +298,131 @@ export default function EditHostel() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="nearbyUniversities" className="text-sm font-bold text-slate-700">Nearby Universities *</label>
-              <div className="relative">
-                <FaUniversity className="absolute top-4 left-4 text-slate-400" />
-                <input
-                  type="text"
-                  id="nearbyUniversities"
-                  name="nearbyUniversities"
-                  value={formData.nearbyUniversities}
-                  onChange={handleChange}
-                  placeholder="University of Ghana, UPSA, Wisconsin University"
-                  className="w-full rounded-2xl border-2 border-slate-100 bg-slate-50 py-3.5 pr-4 pl-12 font-medium transition focus:border-blue-600 focus:bg-white focus:outline-none"
-                  required
-                />
+            {/* UNIVERSITY SELECTION UPGRADE */}
+            <div className="space-y-6 md:col-span-2">
+              <div className="space-y-4">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <FaUniversity className="text-blue-600" /> 
+                  Primary University * 
+                  <span className="text-[10px] font-black uppercase text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full ml-auto">Required</span>
+                </label>
+                <div className="grid gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar grid-cols-1 sm:grid-cols-2">
+                  {UNIVERSITIES.map((uni) => (
+                    <button
+                      key={`primary-${uni.name}`}
+                      type="button"
+                      onClick={() => setPrimaryUniversity(uni.name)}
+                      className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
+                        formData.primaryUniversity === uni.name
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-slate-100 bg-slate-50/50 text-slate-500 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className={`h-4 w-4 shrink-0 rounded-full border-2 ${
+                        formData.primaryUniversity === uni.name ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
+                      }`} />
+                      <span className={`text-xs font-bold ${formData.primaryUniversity === uni.name ? 'text-slate-900' : ''}`}>{uni.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 leading-relaxed italic mt-2">
+                  * The primary university is where your hostel is physically located. These students will see your listing ranked at the very top.
+                </p>
               </div>
+
+              <div className="space-y-4">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <FaCheckCircle className="text-emerald-500" /> 
+                  Additional Nearby Universities 
+                  <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full ml-auto">
+                    {formData.selectedUniversities.length} / 4 Selected
+                  </span>
+                </label>
+                <div className="grid gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar grid-cols-1 sm:grid-cols-2">
+                  {UNIVERSITIES.map((uni) => {
+                    const isDisabled = formData.primaryUniversity === uni.name;
+                    const isSelected = formData.selectedUniversities.includes(uni.name);
+
+                    return (
+                      <button
+                        key={`nearby-${uni.name}`}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={() => toggleNearbyUniversity(uni.name)}
+                        className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-50'
+                            : isDisabled
+                            ? 'opacity-40 grayscale cursor-not-allowed border-slate-50 bg-slate-50'
+                            : 'border-slate-100 bg-slate-50/50 text-slate-500 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
+                          isSelected ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-200'
+                        }`}>
+                          {isSelected && <FaCheckCircle className="text-[10px] text-white" />}
+                        </div>
+                        <span className={`text-xs font-bold ${isSelected ? 'text-slate-900' : ''}`}>{uni.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 leading-relaxed italic mt-2">
+                  * Selecting nearby universities allows students from those campuses to discover your hostel. Primary results are always shown first.
+                </p>
+              </div>
+
+              {/* LIVE SUMMARY CARD */}
+              {(formData.primaryUniversity || formData.selectedUniversities.length > 0) && (
+                <div className="mt-8 rounded-3xl bg-slate-900 p-8 text-white shadow-2xl shadow-blue-100 animate-in fade-in slide-in-from-top-4 duration-500">
+                   <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-black flex items-center gap-2">
+                        <FaUniversity className="text-blue-400" />
+                        Search Visibility Summary
+                      </h3>
+                      <div className="flex flex-col items-end">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Search Reach</p>
+                        <p className="text-2xl font-black text-blue-400">
+                          { (formData.primaryUniversity ? 1 : 0) + formData.selectedUniversities.length } Universities
+                        </p>
+                      </div>
+                   </div>
+
+                   <div className="space-y-4">
+                      {formData.primaryUniversity && (
+                        <div className="flex items-start gap-3">
+                           <div className="mt-1 h-2 w-2 rounded-full bg-blue-500 shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                           <div>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Primary Campus (Top Ranked)</p>
+                              <p className="text-sm font-bold text-slate-200">{formData.primaryUniversity}</p>
+                           </div>
+                        </div>
+                      )}
+
+                      {formData.selectedUniversities.length > 0 && (
+                        <div className="flex items-start gap-3">
+                           <div className="mt-1 h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                           <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Nearby Campuses (Visible)</p>
+                              <div className="flex flex-wrap gap-2">
+                                 {formData.selectedUniversities.map((uni, i) => (
+                                   <span key={i} className="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg border border-white/10 truncate max-w-full">
+                                     {uni}
+                                   </span>
+                                 ))}
+                              </div>
+                           </div>
+                        </div>
+                      )}
+                   </div>
+
+                   <div className="mt-6 pt-6 border-t border-white/5">
+                      <p className="text-[10px] font-medium text-slate-500 italic leading-relaxed">
+                        Student searches for any of these universities will include your hostel. Direct matches on the primary campus are featured first for maximum conversion.
+                      </p>
+                   </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2 md:col-span-2">
@@ -502,37 +647,35 @@ export default function EditHostel() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
               <FaSnowflake />
             </div>
-            <h2 className="text-2xl font-black text-slate-900">Amenities & Features</h2>
+            <h2 className="text-2xl font-black text-slate-900">Building Amenities & Features</h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {[
-              { id: 'wifi', label: 'Wi-Fi Internet', icon: <FaWifi /> },
-              { id: 'ac', label: 'Air Conditioning', icon: <FaSnowflake /> },
-              { id: 'security', label: '24/7 Security', icon: <FaShieldAlt /> },
-              { id: 'water', label: 'Constant Water', icon: <FaTint /> },
-              { id: 'electricity', label: 'Stable Power', icon: <FaLightbulb /> },
-            ].map((amenity) => (
-              <label
-                key={amenity.id}
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition-all ${
-                  (formData as any)[amenity.id]
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  name={amenity.id}
-                  checked={(formData as any)[amenity.id]}
-                  onChange={handleChange}
-                  className="hidden"
-                />
-                <span className="text-xl">{amenity.icon}</span>
-                <span className="font-bold">{amenity.label}</span>
-              </label>
-            ))}
+          <div className="flex flex-wrap gap-4">
+            {HOSTEL_AMENITIES.map((amenity) => {
+              const isSelected = formData.amenities.includes(amenity.id);
+              return (
+                <button
+                  key={amenity.id}
+                  type="button"
+                  onClick={() => toggleHostelAmenity(amenity.id)}
+                  className={`flex items-center gap-3 rounded-2xl border-2 p-4 transition-all active:scale-95 ${
+                    isSelected
+                      ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md shadow-blue-100'
+                      : 'border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200'
+                  }`}
+                >
+                  <span className={`text-xl ${isSelected ? 'text-blue-600' : 'text-slate-400'}`}>
+                    {amenity.icon}
+                  </span>
+                  <span className="font-bold">{amenity.label}</span>
+                  {isSelected && <FaCheckCircle className="text-blue-600 text-xs" />}
+                </button>
+              );
+            })}
           </div>
+          <p className="mt-6 text-xs font-medium text-slate-400 italic">
+            * These amenities apply to the entire building. You can set specific room features (like private washrooms or personal desks) when creating room variants.
+          </p>
         </section>
 
         {/* Media Upload Section */}

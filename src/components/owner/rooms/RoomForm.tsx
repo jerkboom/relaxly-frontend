@@ -25,6 +25,8 @@ interface RoomFormProps {
   isEditing?: boolean;
 }
 
+import { AMENITIES, ROOM_AMENITIES, getAmenityById } from '../../../constants/amenities';
+
 export default function RoomForm({ hostelId, initialData, isEditing = false }: RoomFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
@@ -97,13 +99,19 @@ export default function RoomForm({ hostelId, initialData, isEditing = false }: R
     setFormData(prev => ({ ...prev, images: urls }));
   };
 
-  const toggleAmenity = (amenity: string) => {
-    setFormData(prev => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter(a => a !== amenity)
-        : [...prev.amenities, amenity]
-    }));
+  const toggleAmenity = (amenityId: string) => {
+    setFormData(prev => {
+      const newAmenities = prev.amenities.includes(amenityId)
+        ? prev.amenities.filter(id => id !== amenityId)
+        : [...prev.amenities, amenityId];
+      
+      // Keep legacy boolean fields in sync for backend compatibility
+      const updates: any = { amenities: newAmenities };
+      if (amenityId === 'ac') updates.hasAC = newAmenities.includes('ac');
+      if (amenityId === 'private_washroom') updates.privateWashroom = newAmenities.includes('private_washroom');
+      
+      return { ...prev, ...updates };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,10 +170,6 @@ export default function RoomForm({ hostelId, initialData, isEditing = false }: R
       setSubmitting(false);
     }
   };
-
-  const roomAmenitiesList = [
-    'Study Table', 'Mirror', 'Fan', 'Waste Bin', 'Curtains', 'Fridge', 'Cabinet', 'Bookshelf', 'Water Heater', 'Wi-Fi'
-  ];
 
   const currentAdjustment = adjustments[formData.roomType] || 0;
   const basePrice = Number(formData.price) || 0;
@@ -370,32 +374,7 @@ export default function RoomForm({ hostelId, initialData, isEditing = false }: R
               Amenities & Status
             </h2>
 
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, hasAC: !prev.hasAC }))}
-                  className={`flex items-center gap-2 rounded-2xl px-6 py-4 font-bold transition ${
-                    formData.hasAC 
-                    ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/30' 
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <FaSnowflake /> Air Conditioned
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, privateWashroom: !prev.privateWashroom }))}
-                  className={`flex items-center gap-2 rounded-2xl px-6 py-4 font-bold transition ${
-                    formData.privateWashroom 
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/30' 
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <FaToilet /> Private Washroom
-                </button>
-              </div>
-
+            <div className="space-y-8">
               <div className="space-y-4">
                 <label className="text-xs font-black uppercase tracking-wider text-slate-400">Status</label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -416,24 +395,29 @@ export default function RoomForm({ hostelId, initialData, isEditing = false }: R
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Amenities</label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {roomAmenitiesList.map((amenity) => (
-                    <button
-                      key={amenity}
-                      type="button"
-                      onClick={() => toggleAmenity(amenity)}
-                      className={`flex items-center gap-2 rounded-xl border-2 p-3 text-xs font-bold transition ${
-                        formData.amenities.includes(amenity)
-                        ? 'border-blue-600 bg-blue-50 text-blue-600'
-                        : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'
-                      }`}
-                    >
-                      {formData.amenities.includes(amenity) ? <FaCheckCircle /> : <div className="h-4 w-4 rounded-full border-2 border-slate-200" />}
-                      {amenity}
-                    </button>
-                  ))}
+              <div className="space-y-4">
+                <label className="text-xs font-black uppercase tracking-wider text-slate-400">Room-Specific Amenities</label>
+                <div className="flex flex-wrap gap-3">
+                  {ROOM_AMENITIES.map((amenity) => {
+                    const isSelected = formData.amenities.includes(amenity.id);
+                    return (
+                      <button
+                        key={amenity.id}
+                        type="button"
+                        onClick={() => toggleAmenity(amenity.id)}
+                        className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all active:scale-95 ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 border-2 border-transparent'
+                            : 'bg-white border-2 border-slate-100 text-slate-700 hover:border-slate-200'
+                        }`}
+                      >
+                        <span className={isSelected ? 'text-white' : 'text-blue-500'}>
+                          {amenity.icon}
+                        </span>
+                        {amenity.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

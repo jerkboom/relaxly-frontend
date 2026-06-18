@@ -11,10 +11,15 @@ import {
   Suspense,
   useEffect,
   useState,
-  useCallback,
   useMemo,
   useRef,
 } from 'react';
+
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import {
   useSearchParams,
@@ -34,11 +39,12 @@ import {
 
 import {
   getHostels,
+  getActiveUniversities
 } from '../../src/services/hostelService';
 
-import {
-  getUniversities,
-} from '../../src/services/universityService';
+import { getUniversities } from '../../src/services/universityService';
+
+import { normalizeUniversity } from '../../src/constants/universities';
 
 import HostelCard from '../../src/components/home/HostelCard';
 
@@ -53,26 +59,26 @@ import {
 
 import {
   Hostel,
-  University,
   HostelFilterParams,
   HostelSortOption,
 } from '../../src/types';
 
 import { getDashboardRoute } from '../../src/utils/navigationUtils';
-
-const AMENITIES_OPTIONS = [
-  'WiFi', 'Air Conditioning', 'Study Area', 'Security', 'Private Washroom', 'Kitchen', 'Parking', 'Generator'
-];
+import { AMENITIES, getAmenityById } from '../../src/constants/amenities';
+import { useWishlistStore } from '../../src/store/wishlistStore';
+import { useHistoryStore } from '../../src/store/historyStore';
+import { FaHeart } from 'react-icons/fa';
+import { queryKeys } from '../../src/lib/queryKeys';
 
 const ROOM_TYPES_OPTIONS = [
-  { id: '1-in-1', label: 'Single' },
-  { id: '2-in-1', label: 'Double' },
-  { id: '3-in-1', label: 'Triple' },
-  { id: '4-in-1', label: 'Quad' },
-  { id: '5-in-1', label: '5 Sharing' },
-  { id: '6-in-1', label: '6 Sharing' },
-  { id: '7-in-1', label: '7 Sharing' },
-  { id: '8-in-1', label: '8 Sharing' },
+  { id: 'Single', label: 'Single' },
+  { id: 'Double', label: 'Double' },
+  { id: 'Triple', label: 'Triple' },
+  { id: 'Quad', label: 'Quad' },
+  { id: '5 Sharing', label: '5 Sharing' },
+  { id: '6 Sharing', label: '6 Sharing' },
+  { id: '7 Sharing', label: '7 Sharing' },
+  { id: '8 Sharing', label: '8 Sharing' },
 ];
 
 const SORT_OPTIONS: { id: HostelSortOption; label: string }[] = [
@@ -83,17 +89,18 @@ const SORT_OPTIONS: { id: HostelSortOption; label: string }[] = [
   { id: 'rated', label: 'Top Rated' },
 ];
 
+type ActiveUniversityCount = {
+  _id: string;
+  count: number;
+};
+
 function HostelsPageContent() {
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { user, hasHydrated } = useAuthStore();
+  const { wishlistIds } = useWishlistStore();
+  const { recentHostels } = useHistoryStore();
   const isFirstRender = useRef(true);
-
-  // Data States
-  const [hostels, setHostels] = useState<Hostel[]>([]);
-  const [universities, setUniversities] = useState<University[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
 
   // Filter States
   const initialSearch = useMemo(() => searchParams.get('search') || '', [searchParams]);
@@ -114,13 +121,6 @@ function HostelsPageContent() {
       maxPrice: qBudget ? Number(qBudget) : undefined,
     };
   });
-
-  // Fetch Universities
-  useEffect(() => {
-    getUniversities().then(data => {
-      setUniversities(data?.data || data || []);
-    }).catch(err => console.error('Failed to fetch universities', err));
-  }, []);
 
   // Sync with URL params on changes after initial mount
   useEffect(() => {
@@ -152,57 +152,133 @@ function HostelsPageContent() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch Hostels
-  const fetchHostelsData = useCallback(async () => {
-    if (!hasHydrated) return;
-    
-    try {
-      setLoading(true);
-      const params: HostelFilterParams = {
-        ...filters,
-        location: debouncedSearch || undefined,
-      };
-      
-      const response = await getHostels(params);
-      
-      if (response) {
-        setHostels(response.hostels || []);
-        setTotal(response.total || 0);
-        setTotalPages(response.totalPages || 1);
-      }
-    } catch (error) {
-      console.error('Failed to fetch hostels', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, debouncedSearch, hasHydrated]);
+  const selectedAmenities = useMemo(
+    () => Array.isArray(filters.amenities) ? filters.amenities : [],
+    [filters.amenities]
+  );
+
+  const selectedRoomTypes = useMemo(
+    () => Array.isArray(filters.roomTypes) ? filters.roomTypes : [],
+    [filters.roomTypes]
+  );
+
+  const normalizedUniversity = useMemo(
+    () => normalizeUniversity(filters.university || ''),
+    [filters.university]
+  );
+
+  const hostelQueryKeyParams = useMemo(() => ({
+    search: debouncedSearch || '',
+    university: normalizedUniversity || '',
+    amenities: [...selectedAmenities].sort().join(','),
+    roomCapacity: [...selectedRoomTypes].sort().join(','),
+    sort: filters.sort || 'newest',
+    page: filters.page || 1,
+    minPrice: filters.minPrice,
+    maxPrice: filters.maxPrice,
+    limit: filters.limit || 12,
+  }), [
+    debouncedSearch,
+    normalizedUniversity,
+    selectedAmenities,
+    selectedRoomTypes,
+    filters.sort,
+    filters.page,
+    filters.minPrice,
+    filters.maxPrice,
+    filters.limit,
+  ]);
+
+  const hostelQueryParams = useMemo<HostelFilterParams>(() => ({
+    ...filters,
+    university: normalizedUniversity || undefined,
+    location: debouncedSearch || undefined,
+    amenities: selectedAmenities.length ? selectedAmenities.join(',') : undefined,
+    roomCapacity: selectedRoomTypes.length ? selectedRoomTypes.join(',') : undefined,
+  }), [filters, normalizedUniversity, debouncedSearch, selectedAmenities, selectedRoomTypes]);
+
+  const firstPageHostelParams = useMemo<HostelFilterParams>(() => ({
+    page: 1,
+    limit: 12,
+    sort: 'newest',
+  }), []);
+
+  const hostelQuery = useQuery({
+    queryKey: queryKeys.hostels.list(hostelQueryKeyParams),
+    queryFn: () => getHostels(hostelQueryParams),
+    enabled: hasHydrated,
+    placeholderData: keepPreviousData,
+  });
+
+  const activeUniversitiesQuery = useQuery({
+    queryKey: queryKeys.hostels.activeUniversities(),
+    queryFn: getActiveUniversities,
+  });
+
+  useQuery({
+    queryKey: queryKeys.universities.lists(),
+    queryFn: getUniversities,
+    enabled: hasHydrated,
+  });
 
   useEffect(() => {
-    const triggerFetch = async () => {
-      await fetchHostelsData();
-    };
-    triggerFetch();
-  }, [fetchHostelsData]);
+    if (!hasHydrated) return;
+
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.hostels.list({
+        search: '',
+        university: '',
+        amenities: '',
+        roomCapacity: '',
+        sort: 'newest',
+        page: 1,
+        limit: 12,
+      }),
+      queryFn: () => getHostels(firstPageHostelParams),
+    });
+
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.universities.lists(),
+      queryFn: getUniversities,
+    });
+
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.hostels.activeUniversities(),
+      queryFn: getActiveUniversities,
+    });
+  }, [hasHydrated, queryClient, firstPageHostelParams]);
+
+  const hostels = (hostelQuery.data?.hostels || []) as Hostel[];
+  const total = hostelQuery.data?.total || 0;
+  const totalPages = hostelQuery.data?.totalPages || 1;
+  const loading = hostelQuery.isLoading;
+  const activeUniversities = (activeUniversitiesQuery.data || []) as ActiveUniversityCount[];
 
   // Handlers
-  const toggleAmenity = (amenity: string) => {
-    setFilters(prev => ({
-      ...prev,
-      page: 1,
-      amenities: prev.amenities?.includes(amenity)
-        ? prev.amenities.filter(a => a !== amenity)
-        : [...(prev.amenities || []), amenity]
-    }));
+  const toggleAmenity = (amenityId: string) => {
+    setFilters(prev => {
+      const current = Array.isArray(prev.amenities) ? prev.amenities : [];
+      return {
+        ...prev,
+        page: 1,
+        amenities: current.includes(amenityId)
+          ? current.filter(a => a !== amenityId)
+          : [...current, amenityId]
+      };
+    });
   };
 
   const toggleRoomType = (type: string) => {
-    setFilters(prev => ({
-      ...prev,
-      page: 1,
-      roomTypes: prev.roomTypes?.includes(type)
-        ? prev.roomTypes.filter(t => t !== type)
-        : [...(prev.roomTypes || []), type]
-    }));
+    setFilters(prev => {
+      const current = Array.isArray(prev.roomTypes) ? prev.roomTypes : [];
+      return {
+        ...prev,
+        page: 1,
+        roomTypes: current.includes(type)
+          ? current.filter(t => t !== type)
+          : [...current, type]
+      };
+    });
   };
 
   const resetFilters = () => {
@@ -221,10 +297,30 @@ function HostelsPageContent() {
     let count = 0;
     if (filters.university) count++;
     if (filters.minPrice || filters.maxPrice) count++;
-    if (filters.amenities?.length) count += filters.amenities.length;
-    if (filters.roomTypes?.length) count += filters.roomTypes.length;
+    const amenities = Array.isArray(filters.amenities) ? filters.amenities : [];
+    const rooms = Array.isArray(filters.roomTypes) ? filters.roomTypes : [];
+    count += amenities.length;
+    count += rooms.length;
     return count;
   }, [filters]);
+
+  const removeFilter = (type: string, value?: string) => {
+    setFilters(prev => {
+      const newState = { ...prev, page: 1 };
+      if (type === 'university') { delete newState.university; }
+      if (type === 'budget') { delete newState.minPrice; delete newState.maxPrice; }
+      
+      if (type === 'amenity' && value) { 
+        const current = Array.isArray(prev.amenities) ? prev.amenities : [];
+        newState.amenities = current.filter(a => a !== value); 
+      }
+      if (type === 'room' && value) { 
+        const current = Array.isArray(prev.roomTypes) ? prev.roomTypes : [];
+        newState.roomTypes = current.filter(t => t !== value); 
+      }
+      return newState;
+    });
+  };
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -246,6 +342,19 @@ function HostelsPageContent() {
                 className="w-full rounded-2xl bg-slate-100 py-3 pl-12 pr-4 font-medium outline-none ring-2 ring-transparent transition-all focus:bg-white focus:ring-blue-500/20 shadow-sm"
               />
             </div>
+
+            <Link 
+              href="/saved-hostels"
+              className="hidden sm:flex relative h-12 px-6 items-center gap-2 rounded-2xl bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition"
+            >
+              <FaHeart className="text-rose-500" />
+              <span>Saved</span>
+              {wishlistIds.length > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-black text-white">
+                  {wishlistIds.length}
+                </span>
+              )}
+            </Link>
 
             <button 
               onClick={() => setShowMobileFilters(true)}
@@ -298,19 +407,40 @@ function HostelsPageContent() {
                 </div>
               </div>
 
-              {/* University */}
+              {/* University Stats & Filter */}
               <div className="mb-8">
-                <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">University</p>
-                <select 
-                  value={filters.university || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, university: e.target.value || undefined, page: 1 }))}
-                  className="w-full rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-900 outline-none ring-2 ring-transparent transition focus:ring-blue-500/20"
-                >
-                  <option value="">All Universities</option>
-                  {universities.map(uni => (
-                    <option key={uni._id} value={uni.name}>{uni.name}</option>
-                  ))}
-                </select>
+                {activeUniversities.length > 0 ? (
+                  <>
+                    <div className="mb-4 rounded-2xl bg-blue-50 p-4 border border-blue-100 flex items-center justify-between">
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Active Hubs</p>
+                          <p className="text-xl font-black text-slate-900">{activeUniversities.length}</p>
+                       </div>
+                       <div className="text-right">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Hostels</p>
+                          <p className="text-xl font-black text-slate-900">{activeUniversities.reduce((sum, u) => sum + u.count, 0)}</p>
+                       </div>
+                    </div>
+
+                    <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">University</p>
+                    <select 
+                      value={filters.university || ''}
+                      onChange={(e) => {
+                        setFilters(prev => ({ ...prev, university: e.target.value || undefined, page: 1 }));
+                      }}
+                      className="w-full rounded-xl bg-slate-50 p-3 text-sm font-bold text-slate-900 outline-none ring-2 ring-transparent transition focus:ring-blue-500/20"
+                    >
+                      <option value="">All Universities</option>
+                      {activeUniversities.map(uni => (
+                        <option key={uni._id} value={uni._id}>{uni._id} • {uni.count} hostel{uni.count !== 1 ? 's' : ''}</option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 text-center">
+                    <p className="text-xs font-bold text-slate-500">No universities currently have registered hostels.</p>
+                  </div>
+                )}
               </div>
 
               {/* Price Range */}
@@ -339,17 +469,17 @@ function HostelsPageContent() {
               <div className="mb-8">
                 <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Amenities</p>
                 <div className="flex flex-wrap gap-2">
-                  {AMENITIES_OPTIONS.map(amenity => (
+                  {AMENITIES.map(opt => (
                     <button
-                      key={amenity}
-                      onClick={() => toggleAmenity(amenity)}
+                      key={opt.id}
+                      onClick={() => toggleAmenity(opt.id)}
                       className={`rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-tight transition-all ${
-                        filters.amenities?.includes(amenity)
+                        filters.amenities?.includes(opt.id)
                           ? 'bg-blue-600 text-white shadow-md'
                           : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                       }`}
                     >
-                      {amenity}
+                      {opt.icon} {opt.label}
                     </button>
                   ))}
                 </div>
@@ -389,19 +519,54 @@ function HostelsPageContent() {
 
           {/* RESULTS AREA */}
           <div className="flex-1">
-            <div className="mb-8 flex items-end justify-between">
-              <div>
-                <h1 className="text-3xl font-black text-slate-900 md:text-4xl lg:text-5xl">Explore Hostels</h1>
-                <p className="mt-2 text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                  <span className="text-blue-600">{total}</span> listings found 
-                  {debouncedSearch && <span className="text-slate-300">| Result for &quot;{debouncedSearch}&quot;</span>}
-                </p>
+            <div className="mb-8">
+              <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h1 className="text-3xl font-black text-slate-900 md:text-4xl lg:text-5xl">Explore Hostels</h1>
+                  <p className="mt-2 text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 flex-wrap">
+                    {filters.university ? (
+                      <>Showing <span className="text-blue-600">{total}</span> hostels near {filters.university}</>
+                    ) : (
+                      <><span className="text-blue-600">{total}</span> listings found</>
+                    )}
+                    {debouncedSearch && <span className="text-slate-300">| Result for &quot;{debouncedSearch}&quot;</span>}
+                  </p>
+                </div>
+                
+                <div className="hidden lg:flex items-center gap-3 rounded-2xl bg-white p-1.5 shadow-sm border border-slate-100 shrink-0">
+                  <button className="flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-black text-white">Grid</button>
+                  <button className="flex h-10 items-center justify-center rounded-xl px-4 text-xs font-black text-slate-400 hover:bg-slate-50 transition">Map</button>
+                </div>
               </div>
-              
-              <div className="hidden lg:flex items-center gap-3 rounded-2xl bg-white p-1.5 shadow-sm border border-slate-100">
-                <button className="flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-black text-white">Grid</button>
-                <button className="flex h-10 items-center justify-center rounded-xl px-4 text-xs font-black text-slate-400 hover:bg-slate-50 transition">Map</button>
-              </div>
+
+              {/* ACTIVE FILTER CHIPS */}
+              {activeFiltersCount > 0 && (
+                <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2">
+                  {filters.university && (
+                    <button onClick={() => removeFilter('university')} className="flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-[10px] font-black text-blue-600 uppercase transition hover:bg-blue-200">
+                      Uni: {filters.university.split(' ').pop()} <FaTimes />
+                    </button>
+                  )}
+                  {(filters.minPrice || filters.maxPrice) && (
+                    <button onClick={() => removeFilter('budget')} className="flex items-center gap-2 rounded-full bg-slate-900 px-4 py-1.5 text-[10px] font-black text-white uppercase transition hover:bg-black">
+                      Budget <FaTimes />
+                    </button>
+                  )}
+                  {((filters.amenities as string[]) || []).map(a => {
+                    const amenity = getAmenityById(a);
+                    return (
+                      <button key={a} onClick={() => removeFilter('amenity', a)} className="flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-[10px] font-black text-blue-500 uppercase border border-blue-100 transition hover:bg-blue-100">
+                        {amenity?.icon} {amenity?.label || a} <FaTimes />
+                      </button>
+                    );
+                  })}
+                  {((filters.roomTypes as string[]) || []).map(t => (
+                    <button key={t} onClick={() => removeFilter('room', t)} className="flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-[10px] font-black text-emerald-600 border border-emerald-100 transition hover:bg-emerald-100">
+                      Room: {t} <FaTimes />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {loading ? (
@@ -415,12 +580,14 @@ function HostelsPageContent() {
                 <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50 text-4xl text-slate-200">
                   <FaSearch />
                 </div>
-                <h3 className="text-2xl font-black text-slate-900">No Hostels Found</h3>
+                <h3 className="text-2xl font-black text-slate-900">
+                  {filters.university ? `No hostels currently registered near this university.` : 'No Hostels Found'}
+                </h3>
                 <p className="mt-2 max-w-sm text-lg font-medium text-slate-500 leading-relaxed">
                   We couldn&apos;t find any listings matching your current filters. Try resetting or adjusting them.
                 </p>
                 <button onClick={resetFilters} className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 font-black text-white shadow-xl shadow-blue-200 transition hover:scale-105">
-                  Clear All Filters
+                  Clear Filters
                 </button>
               </div>
             ) : (
@@ -428,6 +595,25 @@ function HostelsPageContent() {
                 {hostels.map(hostel => (
                   <HostelCard key={hostel._id} hostel={hostel} />
                 ))}
+              </div>
+            )}
+
+            {/* RECENTLY VIEWED */}
+            {!loading && recentHostels.length > 0 && (
+              <div className="mt-20">
+                <div className="mb-8 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900">Recently Viewed</h2>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Pick up where you left off</p>
+                  </div>
+                </div>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {recentHostels.slice(0, 4).map(h => (
+                    <div key={h._id} className="scale-90 origin-top-left">
+                      <HostelCard hostel={h} />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -539,17 +725,17 @@ function HostelsPageContent() {
               <div className="mb-10">
                 <p className="mb-4 text-xs font-black uppercase tracking-widest text-slate-400">Amenities</p>
                 <div className="flex flex-wrap gap-3">
-                  {AMENITIES_OPTIONS.map(amenity => (
+                  {AMENITIES.map(opt => (
                     <button
-                      key={amenity}
-                      onClick={() => toggleAmenity(amenity)}
+                      key={opt.id}
+                      onClick={() => toggleAmenity(opt.id)}
                       className={`rounded-full px-6 py-3 text-xs font-black uppercase tracking-tight transition-all ${
-                        filters.amenities?.includes(amenity)
+                        filters.amenities?.includes(opt.id)
                           ? 'bg-slate-900 text-white shadow-xl'
                           : 'bg-slate-100 text-slate-500'
                       }`}
                     >
-                      {amenity}
+                      {opt.label}
                     </button>
                   ))}
                 </div>

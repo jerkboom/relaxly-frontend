@@ -35,6 +35,14 @@ export default function RoomCard({ room, isSelected, onSelect }: RoomCardProps) 
   // room.price is already the total student cost from backend
   const totalPrice = room.totalPrice || room.price;
 
+  const getAvailabilityColor = (count: number) => {
+    if (count === 0) return 'text-slate-500';
+    if (count > 0 && count <= 2) return 'text-amber-600';
+    return 'text-green-600';
+  };
+
+  const bedsPlural = (count: number) => (count === 1 ? 'bed' : 'beds');
+
   return (
     <motion.div 
       initial={false}
@@ -111,46 +119,58 @@ export default function RoomCard({ room, isSelected, onSelect }: RoomCardProps) 
               </div>
             </div>
 
+            {/* NEW AMENITIES PLACEMENT - HIGHER CONVERSION */}
+            <div className="space-y-3 pt-2">
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest pl-1">Included Amenities</p>
+              <div className="flex flex-wrap gap-2">
+                {(room.amenities && room.amenities.length > 0) ? (
+                  room.amenities.map((amenity, idx) => (
+                    <span 
+                      key={idx} 
+                      className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 border border-blue-200 shadow-sm"
+                    >
+                      <FaCheckCircle className="text-[10px]" /> {amenity}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs font-medium text-slate-400 italic">No specific amenities specified</span>
+                )}
+              </div>
+            </div>
+
             <p className="text-sm sm:text-base font-medium text-slate-500 leading-relaxed max-w-2xl line-clamp-3 sm:line-clamp-none">
               {room.description || "Experience comfort and style in this premium room variant designed for modern students."}
             </p>
 
-            <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-2">
               <div className="rounded-xl sm:rounded-2xl bg-slate-50 p-3 sm:p-4 border border-slate-100/50">
-                <p className="flex items-center gap-2 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 sm:mb-2">
-                  <FaBed className="text-blue-600" /> Availability
+                <p className="flex items-center gap-2 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 sm:mb-3">
+                  <FaBed className="text-blue-600" /> Room Availability
                 </p>
-                {room.genderAllocation === 'Mixed' ? (
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-700">
-                      <span className="flex items-center gap-1"><FaFemale className="text-pink-500" /> ♀</span>
-                      <span className={room.femaleAvailableBeds && room.femaleAvailableBeds > 0 ? 'text-emerald-600 font-black' : 'text-slate-400'}>
-                        {room.femaleAvailableBeds || 0} left
+                <div className="space-y-1 sm:space-y-1.5 text-sm">
+                  {room.genderAllocation === 'Mixed' ? (
+                    <>
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-bold text-slate-700">Male</span>
+                        <span className={`font-black ${getAvailabilityColor(room.maleAvailableBeds || 0)}`}>
+                          {room.maleAvailableBeds || 0} {bedsPlural(room.maleAvailableBeds || 0)} left
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-bold text-slate-700">Female</span>
+                        <span className={`font-black ${getAvailabilityColor(room.femaleAvailableBeds || 0)}`}>
+                          {room.femaleAvailableBeds || 0} {bedsPlural(room.femaleAvailableBeds || 0)} left
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-bold text-slate-700">{room.genderAllocation}</span>
+                      <span className={`font-black ${getAvailabilityColor(room.availableBeds)}`}>
+                        {room.availableBeds} {bedsPlural(room.availableBeds)} left
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold text-slate-700">
-                      <span className="flex items-center gap-1"><FaMale className="text-blue-500" /> ♂</span>
-                      <span className={room.maleAvailableBeds && room.maleAvailableBeds > 0 ? 'text-blue-600 font-black' : 'text-slate-400'}>
-                        {room.maleAvailableBeds || 0} left
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-base sm:text-lg font-black text-slate-900 truncate">
-                    {room.availableBeds} <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">
-                      {room.genderAllocation === 'Female' ? '♀ Left' : '♂ Left'}
-                    </span>
-                  </p>
-                )}
-              </div>
-              <div className="hidden sm:block rounded-xl sm:rounded-2xl bg-slate-50 p-3 sm:p-4 border border-slate-100/50">
-                <p className="flex items-center gap-2 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 sm:mb-2">
-                  <FaCheckCircle className="text-blue-600" /> Amenities
-                </p>
-                <div className="flex gap-1 overflow-hidden">
-                  {room.amenities && room.amenities.slice(0, 2).map((a, i) => (
-                    <span key={i} className="text-[9px] sm:text-[10px] font-bold text-slate-600 truncate">{a}{i === 0 && room.amenities && room.amenities.length > 1 ? ',' : ''}</span>
-                  ))}
+                  )}
                 </div>
               </div>
               <div className="rounded-xl sm:rounded-2xl bg-blue-50 p-3 sm:p-4 border border-blue-100/50 flex flex-col justify-center min-h-[60px] sm:min-h-0">

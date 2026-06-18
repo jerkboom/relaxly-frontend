@@ -262,6 +262,25 @@ export default function RoomManagement() {
                     </div>
                   </div>
 
+                  {/* Amenities Preview */}
+                  {room.amenities && room.amenities.length > 0 && (
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-tight mb-2">Amenities</p>
+                      <div className="flex flex-wrap gap-1">
+                        {room.amenities.slice(0, 3).map((a, i) => (
+                          <span key={i} className="rounded-lg bg-white px-2 py-0.5 text-[9px] font-bold text-slate-600 border border-slate-100 truncate max-w-[80px]">
+                            {a}
+                          </span>
+                        ))}
+                        {room.amenities.length > 3 && (
+                          <span className="rounded-lg bg-white px-2 py-0.5 text-[9px] font-bold text-slate-400 border border-slate-100">
+                            +{room.amenities.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Gender and Availability Details */}
                   <div className="rounded-2xl bg-slate-50 p-4 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2">

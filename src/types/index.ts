@@ -287,8 +287,9 @@ export interface HostelFilterParams {
   university?: string;
   minPrice?: number;
   maxPrice?: number;
-  amenities?: string[];
-  roomTypes?: string[];
+  amenities?: string[] | string;
+  roomTypes?: string[] | string;
+  roomCapacity?: string[] | string;
   gender?: 'Male' | 'Female' | 'Mixed';
   verified?: boolean;
   availableNow?: boolean;
@@ -365,7 +366,9 @@ export interface Hostel {
 
   university: University;
 
-  nearbyUniversities?: string[];
+  nearestUniversity: string;
+
+  nearbyUniversities: string[];
 
   owner?: User;
 

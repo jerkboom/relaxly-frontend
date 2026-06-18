@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "^5.15.11",
+    "@tanstack/react-query": "^5.101.0",
     "axios": "^1.16.0",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.38.0",

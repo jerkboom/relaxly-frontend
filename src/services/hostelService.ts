@@ -273,6 +273,11 @@ export const getHostelContactDetails = async (id: string) => {
   return response.data?.data || response.data;
 };
 
+export const getActiveUniversities = async () => {
+  const response = await API.get('/hostels/active-universities');
+  return response.data?.data || response.data || [];
+};
+
 /**
  * Uploads media files (images) for hostels or rooms.
  * 
