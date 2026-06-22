@@ -216,19 +216,34 @@ export default function BookingPage() {
       
       try {
         fetchLockRef.current = roomId;
-        // 1. Fetch Room
-        const roomData = await getSingleRoom(roomId);
+        // 1. Fetch Room and settings in parallel
+        const [roomData, settingsRes] = await Promise.all([
+          getSingleRoom(roomId),
+          API.get('/auth/settings/public').catch(() => null)
+        ]);
+
         if (!roomData) throw new Error('Room not found');
         setRoom(roomData);
+
+        const settings = settingsRes?.data?.data || settingsRes?.data;
+        if (settings) {
+          setPublicSettings(settings);
+        }
+        const duplicateWindow = Number(settings?.duplicateBookingWindowMs) || 20 * 24 * 60 * 60 * 1000;
 
         // 2. Ownership & Status Validation
         const bookings = await getMyBookings();
         
-        // Priority 1: Check if already paid for this room
+        // Priority 1: Check if already paid for this room within the cooldown window
         const alreadyPaid = bookings.find(
-          (b: Booking) => 
-            (typeof b.room === 'string' ? b.room === roomId : b.room._id === roomId) && 
-            ['paid', 'success', 'completed'].includes(b.paymentStatus)
+          (b: Booking) => {
+            const isSameRoom = (typeof b.room === 'string' ? b.room === roomId : b.room._id === roomId);
+            const isPaid = ['paid', 'success', 'completed'].includes(b.paymentStatus);
+            const bookingAge = Date.now() - new Date(b.createdAt).getTime();
+            const isRecent = bookingAge < duplicateWindow;
+            
+            return isSameRoom && isPaid && isRecent;
+          }
         );
 
         if (alreadyPaid) {
@@ -236,12 +251,17 @@ export default function BookingPage() {
           return;
         }
 
-        // Priority 2: Check for existing pending/failed booking
+        // Priority 2: Check for existing pending/failed booking within the cooldown window
         const existingPending = bookings.find(
-          (b: Booking) => 
-            (typeof b.room === 'string' ? b.room === roomId : b.room._id === roomId) && 
-            (b.paymentStatus === 'pending' || b.paymentStatus === 'failed') &&
-            !['expired', 'cancelled', 'rejected'].includes(b.status)
+          (b: Booking) => {
+            const isSameRoom = (typeof b.room === 'string' ? b.room === roomId : b.room._id === roomId);
+            const isPendingOrFailed = (b.paymentStatus === 'pending' || b.paymentStatus === 'failed');
+            const isNotExpired = !['expired', 'cancelled', 'rejected'].includes(b.status);
+            const bookingAge = Date.now() - new Date(b.createdAt).getTime();
+            const isRecent = bookingAge < duplicateWindow;
+
+            return isSameRoom && isPendingOrFailed && isNotExpired && isRecent;
+          }
         );
 
         if (existingPending) {

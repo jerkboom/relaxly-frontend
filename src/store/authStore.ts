@@ -22,6 +22,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useWishlistStore } from './wishlistStore';
+import { useHistoryStore } from './historyStore';
+import { queryClient } from '../lib/queryClient';
 
 interface User {
   _id: string;
@@ -73,6 +76,14 @@ export const useAuthStore =
             user: null,
             token: null,
           });
+          
+          // Clear other stores
+          useWishlistStore.getState().clearWishlist();
+          useHistoryStore.getState().clearHistory();
+          
+          // Clear React Query cache
+          queryClient.clear();
+
           // Also clear localStorage explicitly if needed, but persist middleware usually handles it
           if (typeof window !== 'undefined') {
             localStorage.removeItem('auth-storage');

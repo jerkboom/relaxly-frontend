@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation';
 import { disconnectSocket } from '../lib/socket';
 
 import { useAuthStore } from '../store/authStore';
+import { useWishlistStore } from '../store/wishlistStore';
 
 const NotificationCenter = dynamic(
   () =>
@@ -43,16 +44,32 @@ export default function AuthProvider({
   const pathname = usePathname();
 
   const {
-    hasHydrated,
+    hasHydrated: authHydrated,
     initializeAuth,
     token,
     user,
   } =
     useAuthStore();
 
+  const {
+    hasHydrated: wishlistHydrated,
+    fetchWishlist,
+    clearWishlist,
+  } = useWishlistStore();
+
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
+
+  useEffect(() => {
+    if (authHydrated && wishlistHydrated) {
+      if (user) {
+        fetchWishlist();
+      } else {
+        clearWishlist();
+      }
+    }
+  }, [authHydrated, wishlistHydrated, user, fetchWishlist, clearWishlist]);
 
   const isPublicRoute =
     publicRoutes.has(pathname) ||
@@ -62,7 +79,7 @@ export default function AuthProvider({
 
   const canUseRealtime =
     typeof window !== 'undefined' &&
-    hasHydrated &&
+    authHydrated &&
     Boolean(token && user) &&
     !isPublicRoute;
 

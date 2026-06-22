@@ -103,13 +103,13 @@ export default function LoginPage() {
         } else if (status === 'suspended') {
           router.push('/suspended');
         } else {
-          router.push('/owner/dashboard');
+          router.push('/');
         }
         return;
       }
 
       // 3. Student dashboard (must be verified to reach here)
-      router.push('/student/dashboard');
+      router.push('/');
     } catch (error: unknown) {
       toast.error(
         getErrorMessage(

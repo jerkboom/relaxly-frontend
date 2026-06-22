@@ -28,6 +28,7 @@ interface SettingsState {
   maintenanceMode: boolean;
   maintenanceMessage: string;
   supportSettings: SupportSettings;
+  duplicateBookingWindowMs: number;
   isLoading: boolean;
   fetchSettings: () => Promise<void>;
   /** Allows local overrides of maintenance state for UI testing. */
@@ -42,6 +43,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     phone: '+233 XX XXX XXXX',
     whatsapp: '+233000000000'
   },
+  duplicateBookingWindowMs: 20 * 24 * 60 * 60 * 1000,
   isLoading: true,
 
   /**
@@ -59,6 +61,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           phone: '+233 XX XXX XXXX',
           whatsapp: '+233000000000'
         },
+        duplicateBookingWindowMs: Number(data.duplicateBookingWindowMs) || 20 * 24 * 60 * 60 * 1000,
         isLoading: false 
       });
     } catch (error: any) {

@@ -10,18 +10,27 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaCheckCircle,
   FaPhone,
   FaMapMarkerAlt,
   FaShieldAlt,
   FaWifi,
-  FaSearch
+  FaSearch,
+  FaChevronDown,
+  FaThLarge,
+  FaCalendarCheck,
+  FaHeart,
+  FaCog,
+  FaSignOutAlt,
+  FaHome,
+  FaHistory
 } from 'react-icons/fa';
+import { useAuthStore } from '../src/store/authStore';
 import HostelCard from '../src/components/home/HostelCard';
 import UniversityCard from '../src/components/home/UniversityCard';
 import { Hostel, University } from '../src/types';
@@ -71,6 +80,37 @@ interface PlatformStats {
 export default function HomePageClient() {
   const router = useRouter();
   const { supportSettings } = useSettingsStore();
+
+  const { user, token, hasHydrated, logout } = useAuthStore();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const isLoggedIn = !!(hasHydrated && user && token);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getDisplayName = () => {
+    if (!user) return '';
+    if (user.role === 'owner') return user.name;
+    return user.name.split(' ')[0];
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  };
 
   const [hostels, setHostels] = useState<Hostel[]>([]);
   const [universities, setUniversities] = useState<University[]>([]);
@@ -199,18 +239,194 @@ export default function HomePageClient() {
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/login"
-              className="rounded-xl border px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition hover:bg-gray-100"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-xl bg-blue-600 px-3 sm:px-5 py-2 text-sm sm:text-base font-medium text-white transition hover:bg-blue-700"
-            >
-              Get Started
-            </Link>
+            {isLoggedIn && user ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-slate-50 transition-colors outline-none cursor-pointer"
+                >
+                  {/* User Avatar */}
+                  {/* @ts-ignore */}
+                  {user.avatar || user.profilePhoto || user.profilePicture ? (
+                    <img
+                      /* @ts-ignore */
+                      src={user.avatar || user.profilePhoto || user.profilePicture}
+                      /* @ts-ignore */
+                      alt={user.name}
+                      className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-100"
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 font-bold text-white shadow-sm ring-2 ring-blue-100">
+                      {getInitials(user.name)}
+                    </div>
+                  )}
+
+                  {/* Display Name and Chevron */}
+                  <span className="hidden sm:inline text-sm font-semibold text-slate-700">
+                    {getDisplayName()}
+                  </span>
+                  <FaChevronDown className={`text-xs text-slate-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl bg-white p-2.5 shadow-2xl border border-slate-100 ring-1 ring-black/5 z-[1010]"
+                    >
+                      {/* User Info Header */}
+                      <div className="px-3 py-3 border-b border-slate-50 mb-2">
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                          Signed in as
+                        </p>
+                        <p className="text-sm font-bold text-slate-900 truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {user.email}
+                        </p>
+                        <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          user.role === 'owner' ? 'bg-amber-55 text-amber-700 border border-amber-100' : 
+                          user.role === 'admin' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 
+                          'bg-blue-50 text-blue-600 border border-blue-100'
+                        }`}>
+                          {user.role === 'owner' ? 'Hostel Owner' : user.role === 'admin' ? 'Administrator' : 'Student'}
+                        </span>
+                      </div>
+
+                      {/* Dropdown Items based on role */}
+                      <div className="space-y-0.5">
+                        {user.role === 'student' && (
+                          <>
+                            <Link
+                              href="/student/dashboard"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaThLarge className="text-slate-400" />
+                              <span>View Dashboard</span>
+                            </Link>
+                            <Link
+                              href="/student/bookings"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaCalendarCheck className="text-slate-400" />
+                              <span>My Bookings</span>
+                            </Link>
+                            <Link
+                              href="/saved-hostels"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaHeart className="text-slate-400" />
+                              <span>Saved Hostels</span>
+                            </Link>
+                            <Link
+                              href="/profile"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaCog className="text-slate-400" />
+                              <span>Profile Settings</span>
+                            </Link>
+                          </>
+                        )}
+
+                        {user.role === 'owner' && (
+                          <>
+                            <Link
+                              href="/owner/dashboard"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaThLarge className="text-slate-400" />
+                              <span>Owner Dashboard</span>
+                            </Link>
+                            <Link
+                              href="/owner/hostels"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaHome className="text-slate-400" />
+                              <span>My Hostels</span>
+                            </Link>
+                            <Link
+                              href="/owner/bookings"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaCalendarCheck className="text-slate-400" />
+                              <span>Bookings</span>
+                            </Link>
+                            <Link
+                              href="/owner/payout-history"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaHistory className="text-slate-400" />
+                              <span>Payouts</span>
+                            </Link>
+                            <Link
+                              href="/owner/profile"
+                              onClick={() => setIsDropdownOpen(false)}
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                            >
+                              <FaCog className="text-slate-400" />
+                              <span>Settings</span>
+                            </Link>
+                          </>
+                        )}
+
+                        {user.role === 'admin' && (
+                          <Link
+                            href="/admin/dashboard"
+                            onClick={() => setIsDropdownOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition"
+                          >
+                            <FaThLarge className="text-slate-400" />
+                            <span>Admin Dashboard</span>
+                          </Link>
+                        )}
+
+                        <div className="border-t border-slate-50 my-1 pt-1" />
+
+                        <button
+                          onClick={() => {
+                            setIsDropdownOpen(false);
+                            logout();
+                            router.push('/');
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition cursor-pointer"
+                        >
+                          <FaSignOutAlt className="text-red-400" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-xl border px-3 sm:px-5 py-2 text-sm sm:text-base font-medium transition hover:bg-gray-100"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-xl bg-blue-600 px-3 sm:px-5 py-2 text-sm sm:text-base font-medium text-white transition hover:bg-blue-700"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -271,7 +487,7 @@ export default function HomePageClient() {
               animate={{ opacity: 1, y: 0 }}
             >
               <p className="mb-4 inline-block rounded-full bg-white/20 px-4 py-2 text-xs sm:text-sm font-medium backdrop-blur">
-                #1 Hostel Booking Platform For Students
+                {isLoggedIn ? `Welcome back, ${getDisplayName()} 👋` : '#1 Hostel Booking Platform For Students'}
               </p>
 
               <h1 className="mb-6 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight">

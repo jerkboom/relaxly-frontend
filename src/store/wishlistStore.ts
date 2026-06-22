@@ -10,12 +10,14 @@ interface WishlistState {
   wishlistHostels: Hostel[];
   loading: boolean;
   lastWishlistSync: string | null;
+  hasHydrated: boolean;
   
   setWishlist: (ids: string[]) => void;
   fetchWishlist: () => Promise<void>;
   toggleWishlist: (hostelId: string) => Promise<void>;
   clearWishlist: () => void;
   isSaved: (hostelId: string) => boolean;
+  initializeWishlist: () => void;
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -25,16 +27,18 @@ export const useWishlistStore = create<WishlistState>()(
       wishlistHostels: [],
       loading: false,
       lastWishlistSync: null,
+      hasHydrated: false,
 
       setWishlist: (ids) => set({ wishlistIds: ids }),
 
       fetchWishlist: async () => {
         try {
           set({ loading: true });
-          const hostels = await getWishlistApi();
-          const ids = hostels.map((h: Hostel) => h._id);
+          const hostels = await getWishlistApi() || [];
+          const validHostels = hostels.filter((h: Hostel) => h !== null && h !== undefined);
+          const ids = validHostels.map((h: Hostel) => h._id);
           set({ 
-            wishlistHostels: hostels, 
+            wishlistHostels: validHostels, 
             wishlistIds: ids,
             lastWishlistSync: new Date().toISOString()
           });
@@ -84,11 +88,18 @@ export const useWishlistStore = create<WishlistState>()(
 
       isSaved: (hostelId: string) => {
         return get().wishlistIds.includes(hostelId);
+      },
+
+      initializeWishlist: () => {
+        set({ hasHydrated: true });
       }
     }),
     {
       name: 'wishlist-storage',
       partialize: (state) => ({ wishlistIds: state.wishlistIds }),
+      onRehydrateStorage: () => (state) => {
+        state?.initializeWishlist();
+      }
     }
   )
 );
