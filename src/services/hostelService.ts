@@ -272,10 +272,14 @@ export const getHostelContactDetails = async (id: string) => {
   const response = await API.get(`/hostels/${id}/contact`);
   return response.data?.data || response.data;
 };
-
 export const getActiveUniversities = async () => {
   const response = await API.get('/hostels/active-universities');
   return response.data?.data || response.data || [];
+};
+
+export const getSearchSuggestions = async (q: string) => {
+  const response = await API.get('/hostels/search-suggestions', { params: { q } });
+  return response.data?.data?.suggestions || response.data?.suggestions || [];
 };
 
 /**

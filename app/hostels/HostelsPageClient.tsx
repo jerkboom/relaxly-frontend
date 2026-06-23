@@ -35,11 +35,13 @@ import {
   FaCheck,
   FaShieldAlt,
   FaUndo,
+  FaMapMarkerAlt,
 } from 'react-icons/fa';
 
 import {
   getHostels,
-  getActiveUniversities
+  getActiveUniversities,
+  getSearchSuggestions
 } from '../../src/services/hostelService';
 
 import { getUniversities } from '../../src/services/universityService';
@@ -107,6 +109,7 @@ function HostelsPageContent() {
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [selectedSuggestionType, setSelectedSuggestionType] = useState<string | null>(null);
   
   const [filters, setFilters] = useState<HostelFilterParams>(() => {
     const qUni = searchParams.get('university');
@@ -152,6 +155,34 @@ function HostelsPageContent() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Autocomplete Suggestions State & Hook
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [debouncedSuggestionsSearch, setDebouncedSuggestionsSearch] = useState('');
+
+  useEffect(() => {
+    if (!search || search.trim().length === 0) {
+      setDebouncedSuggestionsSearch('');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setDebouncedSuggestionsSearch(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const suggestionsQuery = useQuery({
+    queryKey: ['hostels', 'suggestions', debouncedSuggestionsSearch],
+    queryFn: () => getSearchSuggestions(debouncedSuggestionsSearch),
+    enabled: hasHydrated && debouncedSuggestionsSearch.trim().length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+  });
+
+  const suggestions = (suggestionsQuery.data || []) as { type: string; name: string }[];
+  const isSuggestionsLoading = suggestionsQuery.isLoading;
+
   const selectedAmenities = useMemo(
     () => Array.isArray(filters.amenities) ? filters.amenities : [],
     [filters.amenities]
@@ -168,7 +199,8 @@ function HostelsPageContent() {
   );
 
   const hostelQueryKeyParams = useMemo(() => ({
-    search: debouncedSearch || '',
+    search: selectedSuggestionType === 'hostel' ? (debouncedSearch || '') : '',
+    location: selectedSuggestionType !== 'hostel' ? (debouncedSearch || '') : '',
     university: normalizedUniversity || '',
     amenities: [...selectedAmenities].sort().join(','),
     roomCapacity: [...selectedRoomTypes].sort().join(','),
@@ -187,15 +219,25 @@ function HostelsPageContent() {
     filters.minPrice,
     filters.maxPrice,
     filters.limit,
+    selectedSuggestionType,
   ]);
 
-  const hostelQueryParams = useMemo<HostelFilterParams>(() => ({
-    ...filters,
-    university: normalizedUniversity || undefined,
-    location: debouncedSearch || undefined,
-    amenities: selectedAmenities.length ? selectedAmenities.join(',') : undefined,
-    roomCapacity: selectedRoomTypes.length ? selectedRoomTypes.join(',') : undefined,
-  }), [filters, normalizedUniversity, debouncedSearch, selectedAmenities, selectedRoomTypes]);
+  const hostelQueryParams = useMemo<HostelFilterParams>(() => {
+    const params: HostelFilterParams = {
+      ...filters,
+      university: normalizedUniversity || undefined,
+      amenities: selectedAmenities.length ? selectedAmenities.join(',') : undefined,
+      roomCapacity: selectedRoomTypes.length ? selectedRoomTypes.join(',') : undefined,
+    };
+
+    if (selectedSuggestionType === 'hostel') {
+      params.search = debouncedSearch || undefined;
+    } else {
+      params.location = debouncedSearch || undefined;
+    }
+
+    return params;
+  }, [filters, normalizedUniversity, debouncedSearch, selectedAmenities, selectedRoomTypes, selectedSuggestionType]);
 
   const firstPageHostelParams = useMemo<HostelFilterParams>(() => ({
     page: 1,
@@ -209,6 +251,15 @@ function HostelsPageContent() {
     enabled: hasHydrated,
     placeholderData: keepPreviousData,
   });
+
+  // Temporary logging for tracing search execution
+  useEffect(() => {
+    console.log("[DEBUG SEARCH FETCH] Selected suggestion:", selectedSuggestionType ? search : "None");
+    console.log("[DEBUG SEARCH FETCH] Suggestion type:", selectedSuggestionType || "None");
+    console.log("[DEBUG SEARCH FETCH] Location param:", hostelQueryParams.location || "undefined");
+    console.log("[DEBUG SEARCH FETCH] Search param:", hostelQueryParams.search || "undefined");
+    console.log("[DEBUG SEARCH FETCH] Returned hostel count:", hostelQuery.data?.hostels?.length || 0);
+  }, [search, selectedSuggestionType, hostelQueryParams, hostelQuery.data]);
 
   const activeUniversitiesQuery = useQuery({
     queryKey: queryKeys.hostels.activeUniversities(),
@@ -291,6 +342,7 @@ function HostelsPageContent() {
     });
     setSearch('');
     setDebouncedSearch('');
+    setSelectedSuggestionType(null);
   };
 
   const activeFiltersCount = useMemo(() => {
@@ -337,10 +389,63 @@ function HostelsPageContent() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setSelectedSuggestionType(null);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 205)}
                 placeholder="Search by name, location or university..."
                 className="w-full rounded-2xl bg-slate-100 py-3 pl-12 pr-4 font-medium outline-none ring-2 ring-transparent transition-all focus:bg-white focus:ring-blue-500/20 shadow-sm"
               />
+              
+              <AnimatePresence>
+                {showSuggestions && search.trim() !== '' && suggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto"
+                  >
+                    <div className="py-2">
+                      {suggestions.map((sug, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          onClick={() => {
+                            console.log("[DEBUG SUGGESTION CLICK] Selected suggestion:", sug.name);
+                            setSelectedSuggestionType(sug.type);
+                            setSearch(sug.name);
+                            setDebouncedSearch(sug.name);
+                            setFilters(prev => ({ ...prev, page: 1 }));
+                            setShowSuggestions(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                        >
+                          {sug.type === 'hostel' ? (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                              <FaSearch className="text-xs" />
+                            </div>
+                          ) : (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+                              <FaMapMarkerAlt className="text-xs" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-bold text-sm text-slate-800">{sug.name}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
+                              {sug.type}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <Link 
@@ -581,12 +686,47 @@ function HostelsPageContent() {
                   <FaSearch />
                 </div>
                 <h3 className="text-2xl font-black text-slate-900">
-                  {filters.university ? `No hostels currently registered near this university.` : 'No Hostels Found'}
+                  {filters.university ? `No hostels currently registered near this university.` : 'No exact match found'}
                 </h3>
-                <p className="mt-2 max-w-sm text-lg font-medium text-slate-500 leading-relaxed">
-                  We couldn&apos;t find any listings matching your current filters. Try resetting or adjusting them.
-                </p>
-                <button onClick={resetFilters} className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 font-black text-white shadow-xl shadow-blue-200 transition hover:scale-105">
+                
+                {suggestions.length > 0 ? (
+                  <div className="mt-6 w-full max-w-md">
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">Did you mean:</p>
+                    <div className="space-y-2">
+                      {suggestions.slice(0, 5).map((sug, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            console.log("[DEBUG SUGGESTION CLICK] Selected did-you-mean suggestion:", sug.name);
+                            setSelectedSuggestionType(sug.type);
+                            setSearch(sug.name);
+                            setDebouncedSearch(sug.name);
+                            setFilters(prev => ({ ...prev, page: 1 }));
+                          }}
+                          className="w-full flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-500/30 hover:bg-slate-50/50 p-4 transition text-left"
+                        >
+                          {sug.type === 'hostel' ? (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500 shrink-0">
+                              <FaSearch className="text-xs" />
+                            </div>
+                          ) : (
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-500 shrink-0">
+                              <FaMapMarkerAlt className="text-xs" />
+                            </div>
+                          )}
+                          <span className="font-bold text-slate-700">{sug.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 max-w-sm text-lg font-medium text-slate-500 leading-relaxed">
+                    We couldn&apos;t find any listings matching your current filters. Try resetting or adjusting them.
+                  </p>
+                )}
+                
+                <button onClick={resetFilters} className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 font-black text-white shadow-xl shadow-blue-200 transition hover:scale-105 flex items-center gap-2 justify-center mx-auto">
                   Clear Filters
                 </button>
               </div>

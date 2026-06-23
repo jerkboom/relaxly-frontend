@@ -39,6 +39,8 @@ import {
 } from 'framer-motion';
 
 import { getErrorMessage } from '../../../src/utils/errorUtils';
+import { getOptimizedImageUrl } from '../../../src/utils/imageUtils';
+
 
 type Step =
   | 'review'
@@ -542,8 +544,9 @@ export default function BookingPage() {
                       <div className="relative h-64 md:h-80 w-full bg-slate-100">
                         {room.displayImage || room.featuredImage || (room.images && room.images[0]) ? (
                           <img 
-                            src={room.displayImage || room.featuredImage || room.images[0]} 
+                            src={getOptimizedImageUrl(room.displayImage || room.featuredImage || room.images[0], 'w_800,h_600,c_fill,q_auto,f_auto')} 
                             alt={room.roomType}
+                            loading="lazy"
                             className="w-full h-full object-cover"
                           />
                         ) : (

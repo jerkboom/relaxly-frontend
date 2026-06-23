@@ -39,6 +39,7 @@ import { getUniversities } from '../src/services/universityService';
 import { getPublicStats } from '../src/services/settingsService';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { generateSlug } from '../src/utils/seoUtils';
+import { getOptimizedImageUrl } from '../src/utils/imageUtils';
 
 /** Static branding and trust features. */
 const features = [
@@ -250,7 +251,7 @@ export default function HomePageClient() {
                   {user.avatar || user.profilePhoto || user.profilePicture ? (
                     <img
                       /* @ts-ignore */
-                      src={user.avatar || user.profilePhoto || user.profilePicture}
+                      src={getOptimizedImageUrl(user.avatar || user.profilePhoto || user.profilePicture, 'w_80,h_80,c_fill,g_face,q_auto,f_auto')}
                       /* @ts-ignore */
                       alt={user.name}
                       className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-100"
@@ -507,12 +508,27 @@ export default function HomePageClient() {
                   Explore Hostels
                 </Link>
 
-                <Link
-                  href="/register"
-                  className="w-full sm:w-auto text-center rounded-2xl border border-white/40 px-7 py-4 font-semibold transition hover:bg-white/10"
-                >
-                  Create Account
-                </Link>
+                {isLoggedIn && user ? (
+                  <Link
+                    href={
+                      user.role === 'owner' ? '/owner/dashboard' :
+                      user.role === 'admin' ? '/admin/dashboard' :
+                      '/student/dashboard'
+                    }
+                    className="w-full sm:w-auto text-center rounded-2xl border border-white/40 px-7 py-4 font-semibold transition hover:bg-white/10"
+                  >
+                    {user.role === 'owner' ? 'Owner Dashboard' :
+                     user.role === 'admin' ? 'Admin Dashboard' :
+                     'My Dashboard'}
+                  </Link>
+                ) : (
+                  <Link
+                    href="/register"
+                    className="w-full sm:w-auto text-center rounded-2xl border border-white/40 px-7 py-4 font-semibold transition hover:bg-white/10"
+                  >
+                    Create Account
+                  </Link>
+                )}
               </div>
             </motion.div>
 
@@ -523,7 +539,7 @@ export default function HomePageClient() {
               className="relative"
             >
               <img
-                src="/images/relaxly-building.png"
+                src="/images/relaxly-building.webp"
                 alt="Relaxly Hostel Building"
                 className="h-64 sm:h-[400px] md:h-[500px] lg:h-[550px] w-full rounded-3xl object-cover shadow-2xl"
               />
@@ -588,64 +604,138 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      {/* FEATURED HOSTELS - Displayed as a responsive grid */}
+      {/* HOSTEL EXPLORATION SECTIONS (Airbnb Style) */}
       <section
         id="hostels"
         className="bg-gray-50 py-16 sm:py-24"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mb-10 sm:mb-16 flex items-end justify-between gap-4">
-            <div>
-              <p className="mb-2 sm:mb-3 font-semibold text-blue-600 text-sm sm:text-base">
-                FEATURED HOSTELS
-              </p>
-
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black">
-                Popular Hostels
-              </h2>
-            </div>
-
-            <Link
-              href="/hostels"
-              className="font-semibold text-blue-600 whitespace-nowrap hover:underline"
-            >
-              View All
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="h-[350px] sm:h-[420px] animate-pulse rounded-3xl bg-gray-200"
-                />
-              ))}
-            </div>
-          ) : filteredHostels.length === 0 ? (
-            <div className="rounded-[3rem] bg-white p-12 sm:p-24 text-center shadow-sm border border-slate-100 flex flex-col items-center">
-              <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50 text-4xl text-slate-200">
-                <FaSearch />
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 space-y-16">
+          
+          {/* SECTION 1: Featured Hostels */}
+          <div>
+            <div className="mb-8 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-2 font-semibold text-blue-600 text-xs sm:text-sm uppercase tracking-widest font-black">
+                  FEATURED HOSTELS
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+                  Popular Hostels
+                </h2>
               </div>
-              <h3 className="mb-3 text-2xl sm:text-3xl font-black text-slate-900">
-                No hostels found
-              </h3>
-              <p className="text-slate-500 font-medium max-w-md mx-auto">
-                We couldn't find any hostels matching "{searchQuery}" at {universityQuery || 'your university'}. Try a different search term.
-              </p>
+              <Link
+                href="/hostels"
+                className="font-semibold text-blue-600 whitespace-nowrap hover:underline text-sm sm:text-base"
+              >
+                View All
+              </Link>
             </div>
-          ) : (
-            <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {filteredHostels
-                .slice(0, 6)
-                .map((hostel) => (
-                  <HostelCard
-                    key={hostel._id}
-                    hostel={hostel}
+
+            {loading ? (
+              <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-none">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="h-64 w-[280px] sm:w-[320px] shrink-0 animate-pulse rounded-3xl bg-gray-200"
                   />
                 ))}
+              </div>
+            ) : hostels.length === 0 ? (
+              <div className="rounded-[3rem] bg-white p-12 text-center shadow-sm border border-slate-100 flex flex-col items-center">
+                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 text-3xl text-slate-200">
+                  <FaSearch />
+                </div>
+                <h3 className="mb-2 text-xl font-black text-slate-900">No hostels found</h3>
+                <p className="text-slate-500 text-sm font-medium">Please check back later.</p>
+              </div>
+            ) : (
+              <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+                {hostels.slice(0, 6).map((hostel) => (
+                  <div key={hostel._id} className="w-[280px] sm:w-[320px] shrink-0 snap-start">
+                    <HostelCard hostel={hostel} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: Near University of Ghana */}
+          {!loading && hostels.filter(h => h.nearestUniversity?.toLowerCase().includes('ghana') || h.location?.address?.toLowerCase().includes('legon')).length > 0 && (
+            <div>
+              <div className="mb-8 flex items-end justify-between gap-4">
+                <div>
+                  <p className="mb-2 font-semibold text-blue-600 text-xs sm:text-sm uppercase tracking-widest font-black">
+                    LOCATION HIGHLIGHTS
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+                    Near University of Ghana
+                  </h2>
+                </div>
+                <Link
+                  href="/hostels?university=University of Ghana"
+                  className="font-semibold text-blue-600 whitespace-nowrap hover:underline text-sm sm:text-base"
+                >
+                  View Near UG
+                </Link>
+              </div>
+
+              <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+                {hostels
+                  .filter(h => h.nearestUniversity?.toLowerCase().includes('ghana') || h.location?.address?.toLowerCase().includes('legon'))
+                  .slice(0, 6)
+                  .map((hostel) => (
+                    <div key={hostel._id} className="w-[280px] sm:w-[320px] shrink-0 snap-start">
+                      <HostelCard hostel={hostel} />
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
+
+          {/* SECTION 3: Recently Added */}
+          {!loading && hostels.length > 0 && (
+            <div>
+              <div className="mb-8 flex items-end justify-between gap-4">
+                <div>
+                  <p className="mb-2 font-semibold text-blue-600 text-xs sm:text-sm uppercase tracking-widest font-black">
+                    FRESH LISTINGS
+                  </p>
+                  <h2 className="text-2xl sm:text-3xl font-black text-slate-900">
+                    Recently Added
+                  </h2>
+                </div>
+                <Link
+                  href="/hostels?sort=newest"
+                  className="font-semibold text-blue-600 whitespace-nowrap hover:underline text-sm sm:text-base"
+                >
+                  View Newest
+                </Link>
+              </div>
+
+              <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+                {[...hostels]
+                  .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                  .slice(0, 6)
+                  .map((hostel) => (
+                    <div key={hostel._id} className="w-[280px] sm:w-[320px] shrink-0 snap-start">
+                      <HostelCard hostel={hostel} />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* View All Hostels Button */}
+          {!loading && hostels.length > 0 && (
+            <div className="flex justify-center pt-8">
+              <Link
+                href="/hostels"
+                className="w-full sm:w-auto text-center inline-flex items-center justify-center rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-8 shadow-xl shadow-blue-200 transition active:scale-95 text-base sm:text-lg"
+              >
+                View All Hostels
+              </Link>
+            </div>
+          )}
+
         </div>
       </section>
 

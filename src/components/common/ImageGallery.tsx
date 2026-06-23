@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FaChevronLeft, FaChevronRight, FaExpand, FaTimes } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-import { prioritizeFeatured, FALLBACK_IMAGE, safeImage } from '@/src/utils/imageUtils';
+import { prioritizeFeatured, FALLBACK_IMAGE, safeImage, getOptimizedImageUrl } from '@/src/utils/imageUtils';
 
 interface ImageGalleryProps {
   images: string[] | any;
@@ -105,7 +105,7 @@ export default function ImageGallery({
             onClick={() => setIsLightboxOpen(true)}
           >
             <img
-              src={safeImage(displayImages[0])}
+              src={getOptimizedImageUrl(safeImage(displayImages[0]), 'w_1200,q_auto,f_auto')}
               alt={`${alt} - Main`}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
@@ -125,8 +125,9 @@ export default function ImageGallery({
                 }}
               >
                 <img
-                  src={safeImage(displayImages[idx % displayImages.length] || displayImages[0])}
+                  src={getOptimizedImageUrl(safeImage(displayImages[idx % displayImages.length] || displayImages[0]), 'w_600,h_400,c_fill,q_auto,f_auto')}
                   alt={`${alt} - ${idx}`}
+                  loading="lazy"
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                   onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }}
                 />
@@ -149,7 +150,7 @@ export default function ImageGallery({
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.img
             key={currentIndex}
-            src={safeImage(displayImages[currentIndex])}
+            src={getOptimizedImageUrl(safeImage(displayImages[currentIndex]), 'w_1200,q_auto,f_auto')}
             custom={direction}
             variants={variants}
             initial="enter"
@@ -222,8 +223,9 @@ export default function ImageGallery({
               }`}
             >
               <img 
-                src={safeImage(img)} 
+                src={getOptimizedImageUrl(safeImage(img), 'w_150,h_100,c_fill,q_auto,f_auto')} 
                 alt={`Thumbnail ${idx + 1}`} 
+                loading="lazy"
                 className="h-full w-full object-cover" 
                 onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE; }} 
               />
@@ -252,7 +254,7 @@ export default function ImageGallery({
             <div className="relative h-full w-full max-w-7xl flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
               <motion.img
                 key={`lightbox-${currentIndex}`}
-                src={safeImage(displayImages[currentIndex])}
+                src={getOptimizedImageUrl(safeImage(displayImages[currentIndex]), 'w_1200,q_auto,f_auto')}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className="max-h-full max-w-full object-contain shadow-2xl"

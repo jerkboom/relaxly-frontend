@@ -18,6 +18,8 @@ import toast from 'react-hot-toast';
 import API from '../../../src/lib/axios';
 import { getSingleHostel } from '../../../src/services/hostelService';
 import { useAuthStore } from '../../../src/store/authStore';
+import { getOptimizedImageUrl } from '../../../src/utils/imageUtils';
+
 import { getDashboardRoute } from '../../../src/utils/navigationUtils';
 
 interface OwnerDetails {
@@ -151,8 +153,9 @@ export default function OwnerContactPage() {
               <div className="flex h-32 w-32 items-center justify-center rounded-[2.5rem] bg-white p-2 shadow-2xl">
                 {owner.profileImage ? (
                   <img 
-                    src={owner.profileImage} 
+                    src={getOptimizedImageUrl(owner.profileImage, 'w_200,h_200,c_fill,g_face,q_auto,f_auto')} 
                     alt={owner.name} 
+                    loading="lazy"
                     className="h-full w-full rounded-[2rem] object-cover"
                   />
                 ) : (

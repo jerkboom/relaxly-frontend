@@ -71,3 +71,18 @@ export const safeImage = (url?: string): string => {
   }
   return FALLBACK_IMAGE;
 };
+
+/**
+ * Dynamically injects Cloudinary transformation parameters into image URLs.
+ * Safely ignores local static paths, vector icons, blobs, and external fallbacks (like Unsplash/Google).
+ */
+export const getOptimizedImageUrl = (url: string | undefined, transformations: string): string => {
+  if (!url) return FALLBACK_IMAGE;
+  
+  // Only modify Cloudinary URLs
+  if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+    return url.replace('/upload/', `/upload/${transformations}/`);
+  }
+  
+  return url;
+};

@@ -283,6 +283,7 @@ export type HostelSortOption =
  * Parameters for the advanced hostel filtering system.
  */
 export interface HostelFilterParams {
+  search?: string;
   location?: string;
   university?: string;
   minPrice?: number;
@@ -373,4 +374,15 @@ export interface Hostel {
   owner?: User;
 
   rooms?: Room[];
+
+  roomSummary?: {
+    occupancyStyle: string;
+    price: number;
+    availableBeds: number;
+  }[];
+
+  createdAt?: string;
+
+
+  updatedAt?: string;
 }
