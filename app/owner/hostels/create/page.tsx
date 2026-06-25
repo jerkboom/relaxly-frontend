@@ -21,9 +21,10 @@ import {
 } from 'react-icons/fa';
 import Link from 'next/link';
 import { createHostel } from '../../../../src/services/hostelService';
-import { UNIVERSITIES, normalizeUniversity } from '../../../../src/constants/universities';
+import { normalizeUniversity } from '../../../../src/constants/universities';
 import { HOSTEL_AMENITIES } from '../../../../src/constants/amenities';
 import ImageUploader from '../../../../src/components/owner/ImageUploader';
+import UniversitySelector from '../../../../src/components/owner/UniversitySelector';
 import toast from 'react-hot-toast';
 
 export default function CreateHostel() {
@@ -225,77 +226,12 @@ export default function CreateHostel() {
 
             {/* UNIVERSITY SELECTION UPGRADE */}
             <div className="space-y-6 md:col-span-2">
-              <div className="space-y-4">
-                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <FaUniversity className="text-blue-600" /> 
-                  Primary University * 
-                  <span className="text-[10px] font-black uppercase text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full ml-auto">Required</span>
-                </label>
-                <div className="grid gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar grid-cols-1 sm:grid-cols-2">
-                  {UNIVERSITIES.map((uni) => (
-                    <button
-                      key={`primary-${uni.name}`}
-                      type="button"
-                      onClick={() => setPrimaryUniversity(uni.name)}
-                      className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
-                        formData.primaryUniversity === uni.name
-                          ? 'border-blue-600 bg-blue-50'
-                          : 'border-slate-100 bg-slate-50/50 text-slate-500 hover:border-slate-200'
-                      }`}
-                    >
-                      <div className={`h-4 w-4 shrink-0 rounded-full border-2 ${
-                        formData.primaryUniversity === uni.name ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'
-                      }`} />
-                      <span className={`text-xs font-bold ${formData.primaryUniversity === uni.name ? 'text-slate-900' : ''}`}>{uni.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] font-medium text-slate-500 leading-relaxed italic mt-2">
-                  * The primary university is where your hostel is physically located. These students will see your listing ranked at the very top.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <FaCheckCircle className="text-emerald-500" /> 
-                  Additional Nearby Universities 
-                  <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full ml-auto">
-                    {formData.selectedUniversities.length} / 4 Selected
-                  </span>
-                </label>
-                <div className="grid gap-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar grid-cols-1 sm:grid-cols-2">
-                  {UNIVERSITIES.map((uni) => {
-                    const isDisabled = formData.primaryUniversity === uni.name;
-                    const isSelected = formData.selectedUniversities.includes(uni.name);
-
-                    return (
-                      <button
-                        key={`nearby-${uni.name}`}
-                        type="button"
-                        disabled={isDisabled}
-                        onClick={() => toggleNearbyUniversity(uni.name)}
-                        className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all ${
-                          isSelected
-                            ? 'border-emerald-500 bg-emerald-50'
-                            : isDisabled
-                            ? 'opacity-40 grayscale cursor-not-allowed border-slate-50 bg-slate-50'
-                            : 'border-slate-100 bg-slate-50/50 text-slate-500 hover:border-slate-200'
-                        }`}
-                      >
-                        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
-                          isSelected ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-200'
-                        }`}>
-                          {isSelected && <FaCheckCircle className="text-[10px] text-white" />}
-                        </div>
-                        <span className={`text-xs font-bold ${isSelected ? 'text-slate-900' : ''}`}>{uni.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[10px] font-medium text-slate-500 leading-relaxed italic mt-2">
-                  * Selecting nearby universities allows students from those campuses to discover your hostel. Primary results are always shown first.
-                </p>
-              </div>
+              <UniversitySelector
+                primaryUniversity={formData.primaryUniversity}
+                selectedUniversities={formData.selectedUniversities}
+                onChangePrimary={setPrimaryUniversity}
+                onChangeNearby={(names) => setFormData(prev => ({ ...prev, selectedUniversities: names }))}
+              />
 
               {/* LIVE SUMMARY CARD */}
               {(formData.primaryUniversity || formData.selectedUniversities.length > 0) && (
