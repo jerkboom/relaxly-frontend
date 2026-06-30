@@ -39,7 +39,8 @@ import {
   FaTimes,
   FaQuestionCircle,
   FaWallet,
-  FaHistory
+  FaHistory,
+  FaBuilding
 } from 'react-icons/fa';
 import ProtectedRoute from '../../src/components/auth/ProtectedRoute';
 import { useAuthStore } from '../../src/store/authStore';
@@ -81,8 +82,9 @@ export default function OwnerLayout({
 
   /** Main navigation configuration for the Owner dashboard. */
   const navigation = [
+    { href: '/', icon: <FaHome />, label: 'Home' },
     { href: '/owner/dashboard', icon: <FaThLarge />, label: 'Dashboard' },
-    { href: '/owner/hostels', icon: <FaHome />, label: 'My Hostels' },
+    { href: '/owner/hostels', icon: <FaBuilding />, label: 'My Hostels' },
     { href: '/owner/bookings', icon: <FaCalendarCheck />, label: 'Bookings' },
     { href: '/owner/payout-history', icon: <FaHistory />, label: 'Payout History' },
     { href: '/owner/payout-settings', icon: <FaWallet />, label: 'Payout Settings' },
@@ -111,7 +113,7 @@ export default function OwnerLayout({
           <div className="flex h-full flex-col">
             {/* BRANDING LOGO */}
             <div className="flex items-center justify-between px-8 py-8">
-              <Link href="/owner/dashboard" className="flex items-center gap-2 text-3xl font-black text-blue-600">
+              <Link href="/" className="flex items-center gap-2 text-3xl font-black text-blue-600">
                 <img src="/logo.svg" alt="Relaxly Logo" className="h-8 w-8" />
                 <span>Relaxly</span>
               </Link>

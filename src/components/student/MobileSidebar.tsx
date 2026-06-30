@@ -11,7 +11,8 @@ import {
   FaSearch, 
   FaSignOutAlt, 
   FaTimes,
-  FaArrowRight
+  FaArrowRight,
+  FaTachometerAlt
 } from 'react-icons/fa';
 import { useAuthStore } from '../../store/authStore';
 import { useWishlistStore } from '../../store/wishlistStore';
@@ -39,7 +40,8 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const navigation = [
-    { href: '/student/dashboard', icon: <FaHome />, label: 'Dashboard' },
+    { href: '/', icon: <FaHome />, label: 'Home' },
+    { href: '/student/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard' },
     { href: '/student/bookings', icon: <FaCalendarAlt />, label: 'My Bookings' },
     { href: '/saved-hostels', icon: <FaHeart />, label: 'Saved Hostels', badge: wishlistIds.length },
     { href: '/hostels', icon: <FaSearch />, label: 'Browse Hostels' },
@@ -75,7 +77,7 @@ const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-8">
-              <Link href="/student/dashboard" onClick={onClose} className="flex items-center gap-2 text-2xl font-black text-blue-600">
+              <Link href="/" onClick={onClose} className="flex items-center gap-2 text-2xl font-black text-blue-600">
                 <img src="/logo.svg" alt="Relaxly Logo" className="h-8 w-8" />
                 <span>Relaxly</span>
               </Link>
