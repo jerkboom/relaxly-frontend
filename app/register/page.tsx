@@ -140,7 +140,16 @@ export default function RegisterPage() {
 
       router.push('/verify-email-pending');
       return;
-    } catch (error: unknown) {
+    } catch (error: any) {
+      if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        localStorage.setItem('pendingVerificationEmail', formData.email);
+        toast.success(
+          error.response.data.message ||
+          "This email already has an account. We've sent you a new verification email."
+        );
+        router.push('/verify-email-pending');
+        return;
+      }
       toast.error(
         getErrorMessage(
           error,

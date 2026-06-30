@@ -14,7 +14,7 @@ import {
   FaExclamationCircle,
 } from 'react-icons/fa';
 
-import { verifyEmail } from '../../services/authService';
+import { verifyEmail, resendVerification } from '../../services/authService';
 
 export default function VerifyEmailPage() {
   const params = useParams();
@@ -26,6 +26,10 @@ export default function VerifyEmailPage() {
 
   const [status, setStatus] =
     useState('loading');
+
+  const [email, setEmail] = useState('');
+  const [errorCode, setErrorCode] = useState('');
+  const [resending, setResending] = useState(false);
 
   const token = Array.isArray(
     params.token
@@ -62,9 +66,16 @@ export default function VerifyEmailPage() {
       } catch (error) {
         setStatus('error');
 
+        const data = error.response?.data;
+        if (data?.code === 'VERIFICATION_TOKEN_EXPIRED') {
+          setErrorCode('VERIFICATION_TOKEN_EXPIRED');
+          setEmail(data.email || '');
+        } else if (data?.code === 'VERIFICATION_TOKEN_INVALID') {
+          setErrorCode('VERIFICATION_TOKEN_INVALID');
+        }
+
         toast.error(
-          error.response?.data
-            ?.message ||
+          data?.message ||
             'Email verification failed'
         );
       }
@@ -72,6 +83,22 @@ export default function VerifyEmailPage() {
 
     verify();
   }, [router, token]);
+
+  const handleResend = async () => {
+    if (!email) return;
+    setResending(true);
+    try {
+      await resendVerification(email);
+      toast.success('A new verification email has been sent!');
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message ||
+          'Failed to resend verification email'
+      );
+    } finally {
+      setResending(false);
+    }
+  };
 
   const isSuccess =
     status === 'success';
@@ -104,7 +131,9 @@ export default function VerifyEmailPage() {
           {isSuccess
             ? 'Email Verified'
             : isError
-              ? 'Verification Failed'
+              ? errorCode === 'VERIFICATION_TOKEN_EXPIRED'
+                ? 'Link Expired'
+                : 'Verification Failed'
               : 'Verifying Email'}
         </h1>
 
@@ -112,18 +141,36 @@ export default function VerifyEmailPage() {
           {isSuccess
             ? 'Your email has been verified. Redirecting you to login.'
             : isError
-              ? 'This verification link may be invalid or expired.'
+              ? errorCode === 'VERIFICATION_TOKEN_EXPIRED'
+                ? 'Your verification link has expired.'
+                : 'This verification link may be invalid or expired.'
               : 'Please wait while we confirm your email address.'}
         </p>
 
-        {isError && (
+        {isError && errorCode === 'VERIFICATION_TOKEN_EXPIRED' ? (
+          <div className="mt-8 flex flex-col gap-4">
+            <button
+              onClick={handleResend}
+              disabled={resending}
+              className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {resending ? 'Sending...' : 'Send me a new verification email'}
+            </button>
+            <Link
+              href="/login"
+              className="text-sm font-semibold text-blue-600 hover:underline"
+            >
+              Back to Login
+            </Link>
+          </div>
+        ) : isError ? (
           <Link
             href="/login"
             className="mt-8 inline-flex items-center justify-center rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition hover:bg-blue-700"
           >
             Go to Login
           </Link>
-        )}
+        ) : null}
       </div>
     </main>
   );

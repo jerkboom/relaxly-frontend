@@ -131,3 +131,20 @@ export const verifyEmail =
 
     return response.data?.data || response.data;
   };
+
+/**
+ * Resends the verification email to the user.
+ * 
+ * Endpoint: POST /auth/resend-verification
+ */
+export const resendVerification =
+  async (email: string) => {
+    const response =
+      await API.post(
+        '/auth/resend-verification',
+        { email }
+      );
+
+    return response.data?.data || response.data;
+  };
+
