@@ -639,7 +639,7 @@ export default function HomePageClient() {
                   />
                 ))}
               </div>
-            ) : hostels.length === 0 ? (
+            ) : filteredHostels.length === 0 ? (
               <div className="rounded-[3rem] bg-white p-12 text-center shadow-sm border border-slate-100 flex flex-col items-center">
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 text-3xl text-slate-200">
                   <FaSearch />
@@ -649,7 +649,7 @@ export default function HomePageClient() {
               </div>
             ) : (
               <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
-                {hostels.slice(0, 6).map((hostel) => (
+                {filteredHostels.slice(0, 6).map((hostel) => (
                   <div key={hostel._id} className="w-[280px] sm:w-[320px] shrink-0 snap-start">
                     <HostelCard hostel={hostel} />
                   </div>
@@ -829,16 +829,22 @@ export default function HomePageClient() {
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link
-              href="/register"
-              className="w-full sm:w-auto rounded-2xl bg-white px-8 py-4 font-bold text-blue-700 transition hover:scale-105 shadow-xl"
-            >
-              Get Started
-            </Link>
+            {!isLoggedIn && (
+              <Link
+                href="/register"
+                className="w-full sm:w-auto text-center rounded-2xl bg-white px-8 py-4 font-bold text-blue-700 transition hover:scale-105 shadow-xl"
+              >
+                Get Started
+              </Link>
+            )}
 
             <Link
               href="/hostels"
-              className="w-full sm:w-auto rounded-2xl border border-white/40 px-8 py-4 font-bold transition hover:bg-white/10"
+              className={`w-full sm:w-auto text-center rounded-2xl px-8 py-4 font-bold transition hover:scale-105 ${
+                isLoggedIn
+                  ? 'bg-white text-blue-700 shadow-xl'
+                  : 'border border-white/40 hover:bg-white/10'
+              }`}
             >
               Browse Hostels
             </Link>

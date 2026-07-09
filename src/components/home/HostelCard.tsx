@@ -272,6 +272,22 @@ export default function HostelCard({
             </div>
           </div>
 
+          {/* Selected Room Details (Price and Beds) */}
+          {selectedVariant && (
+            <div className="mt-2 flex items-center justify-between text-xs bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+              <span className="font-bold text-slate-700">
+                {selectedVariant.occupancyStyle} Room
+              </span>
+              <span className={`font-black uppercase text-[10px] tracking-tight ${
+                selectedVariant.availableBeds > 0 ? 'text-emerald-600' : 'text-rose-500'
+              }`}>
+                {selectedVariant.availableBeds > 0 
+                  ? `${selectedVariant.availableBeds} beds left` 
+                  : 'Fully Booked'}
+              </span>
+            </div>
+          )}
+
           {/* Room Capacity & Gender Allowed */}
           <div className="flex items-center justify-between border-t border-slate-50 pt-2 text-[10px] font-black uppercase tracking-wider text-slate-500 flex-wrap gap-y-2">
             <div className="flex items-center gap-1.5 flex-wrap">

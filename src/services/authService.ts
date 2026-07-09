@@ -148,3 +148,17 @@ export const resendVerification =
     return response.data?.data || response.data;
   };
 
+/**
+ * Uploads a public file (like Gov ID during registration).
+ * 
+ * Endpoint: POST /upload/public
+ */
+export const uploadPublicFile = async (formData: FormData) => {
+  const response = await API.post('/upload/public', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data?.data || response.data;
+};
+

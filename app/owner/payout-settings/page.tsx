@@ -20,6 +20,28 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const STATIC_GH_BANKS = [
+  { code: '013', name: 'GCB Bank' },
+  { code: '014', name: 'Ecobank Ghana' },
+  { code: '004', name: 'Absa Bank Ghana' },
+  { code: '006', name: 'Fidelity Bank Ghana' },
+  { code: '017', name: 'Access Bank' },
+  { code: '003', name: 'Stanbic Bank' },
+  { code: '008', name: 'Standard Chartered Bank' },
+  { code: '012', name: 'CalBank' },
+  { code: '018', name: 'Zenith Bank' },
+  { code: '019', name: 'United Bank for Africa (UBA)' },
+  { code: '001', name: 'Agricultural Development Bank (ADB)' },
+  { code: '023', name: 'Guaranty Trust Bank (GTBank)' },
+  { code: '020', name: 'Prudential Bank' },
+  { code: '015', name: 'Republic Bank' },
+  { code: '005', name: 'National Investment Bank (NIB)' },
+  { code: '024', name: 'Consolidated Bank Ghana (CBG)' },
+  { code: '033', name: 'First National Bank (FNB)' },
+  { code: '027', name: 'First Atlantic Bank' },
+  { code: '010', name: 'Universal Merchant Bank (UMB)' }
+];
+
 export default function PayoutSettingsPage() {
   const { supportSettings } = useSettingsStore();
   const [method, setMethod] = useState<any>(null);
@@ -38,9 +60,41 @@ export default function PayoutSettingsPage() {
     accountNumber: ''
   });
 
+  const [banks, setBanks] = useState<{ code: string; name: string }[]>(STATIC_GH_BANKS);
+
   useEffect(() => {
     loadMethod();
+
+    const fetchBanks = async () => {
+      try {
+        const response = await fetch('https://api.paystack.co/bank?country=ghana');
+        const result = await response.json();
+        if (result && Array.isArray(result.data)) {
+          const uniqueCodes = new Set<string>();
+          const formatted: { code: string; name: string }[] = [];
+          
+          result.data.forEach((b: any) => {
+            if (b.code && !uniqueCodes.has(b.code)) {
+              uniqueCodes.add(b.code);
+              formatted.push({
+                code: b.code,
+                name: b.name
+              });
+            }
+          });
+          setBanks(formatted);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch banks from Paystack, using static list', err);
+      }
+    };
+    fetchBanks();
   }, []);
+
+  const getBankNameByCode = (code: string) => {
+    const bank = banks.find(b => b.code === code);
+    return bank ? bank.name : code;
+  };
 
   const loadMethod = async () => {
     try {
@@ -262,13 +316,19 @@ export default function PayoutSettingsPage() {
                     <>
                       <div>
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block">Bank Name</label>
-                        <input 
+                        <select 
                           required
-                          placeholder="e.g. GCB Bank"
-                          className="w-full rounded-2xl border-2 border-slate-100 px-6 py-4 font-bold text-slate-900 focus:border-blue-600 focus:outline-none transition-colors"
+                          className="w-full rounded-2xl border-2 border-slate-100 px-6 py-4 font-bold text-slate-900 focus:border-blue-600 focus:outline-none transition-colors appearance-none bg-white"
                           value={formData.bankName}
                           onChange={e => setFormData({...formData, bankName: e.target.value})}
-                        />
+                        >
+                          <option value="">Select Bank...</option>
+                          {banks.map(bank => (
+                            <option key={bank.code} value={bank.code}>
+                              {bank.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 block">Account Number</label>
@@ -337,7 +397,7 @@ export default function PayoutSettingsPage() {
 
                 <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{method.type === 'momo' ? 'Network' : 'Bank Name'}</p>
-                  <p className="text-xl font-black text-slate-900">{method.type === 'momo' ? method.provider : method.bankCode}</p>
+                  <p className="text-xl font-black text-slate-900">{method.type === 'momo' ? method.provider : getBankNameByCode(method.bankCode)}</p>
                 </div>
                 <div className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Account Number</p>

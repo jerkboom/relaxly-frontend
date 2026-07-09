@@ -36,6 +36,8 @@ import {
   FaShieldAlt,
   FaUndo,
   FaMapMarkerAlt,
+  FaUniversity,
+  FaBed,
 } from 'react-icons/fa';
 
 import {
@@ -183,6 +185,35 @@ function HostelsPageContent() {
   const suggestions = (suggestionsQuery.data || []) as { type: string; name: string }[];
   const isSuggestionsLoading = suggestionsQuery.isLoading;
 
+  // Group suggestions by category (Hostels, Universities, Locations)
+  const groupedSuggestions = useMemo(() => {
+    const hostelsList: { type: string; name: string }[] = [];
+    const universitiesList: { type: string; name: string }[] = [];
+    const locationsList: { type: string; name: string }[] = [];
+
+    suggestions.forEach(sug => {
+      const type = sug.type;
+      const isUniversityName = sug.name.toLowerCase().includes('university') || 
+                               sug.name.toLowerCase().includes('campus') ||
+                               sug.name.toLowerCase().includes('college') ||
+                               ['ug', 'upsa', 'knust', 'ucc', 'uds', 'ashesi'].includes(sug.name.toLowerCase());
+      
+      if (type === 'hostel') {
+        hostelsList.push(sug);
+      } else if (type === 'university' || isUniversityName) {
+        universitiesList.push({ ...sug, type: 'university' });
+      } else {
+        locationsList.push(sug);
+      }
+    });
+
+    return [
+      { title: 'Hostels', items: hostelsList },
+      { title: 'Universities', items: universitiesList },
+      { title: 'Locations', items: locationsList }
+    ].filter(group => group.items.length > 0);
+  }, [suggestions]);
+
   const selectedAmenities = useMemo(
     () => Array.isArray(filters.amenities) ? filters.amenities : [],
     [filters.amenities]
@@ -199,8 +230,8 @@ function HostelsPageContent() {
   );
 
   const hostelQueryKeyParams = useMemo(() => ({
-    search: selectedSuggestionType === 'hostel' ? (debouncedSearch || '') : '',
-    location: selectedSuggestionType !== 'hostel' ? (debouncedSearch || '') : '',
+    search: selectedSuggestionType !== 'location' ? (debouncedSearch || '') : '',
+    location: selectedSuggestionType === 'location' ? (debouncedSearch || '') : '',
     university: normalizedUniversity || '',
     amenities: [...selectedAmenities].sort().join(','),
     roomCapacity: [...selectedRoomTypes].sort().join(','),
@@ -230,10 +261,10 @@ function HostelsPageContent() {
       roomCapacity: selectedRoomTypes.length ? selectedRoomTypes.join(',') : undefined,
     };
 
-    if (selectedSuggestionType === 'hostel') {
-      params.search = debouncedSearch || undefined;
-    } else {
+    if (selectedSuggestionType === 'location') {
       params.location = debouncedSearch || undefined;
+    } else {
+      params.search = debouncedSearch || undefined;
     }
 
     return params;
@@ -405,42 +436,52 @@ function HostelsPageContent() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto"
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-100 shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto"
                   >
                     <div className="py-2">
-                      {suggestions.map((sug, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                          }}
-                          onClick={() => {
-                            console.log("[DEBUG SUGGESTION CLICK] Selected suggestion:", sug.name);
-                            setSelectedSuggestionType(sug.type);
-                            setSearch(sug.name);
-                            setDebouncedSearch(sug.name);
-                            setFilters(prev => ({ ...prev, page: 1 }));
-                            setShowSuggestions(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
-                        >
-                          {sug.type === 'hostel' ? (
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                              <FaSearch className="text-xs" />
-                            </div>
-                          ) : (
-                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
-                              <FaMapMarkerAlt className="text-xs" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-bold text-sm text-slate-800">{sug.name}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
-                              {sug.type}
-                            </p>
+                      {groupedSuggestions.map((group, groupIdx) => (
+                        <div key={groupIdx} className="mb-3 last:mb-0">
+                          <div className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-50 mb-1">
+                            {group.title}
                           </div>
-                        </button>
+                          <div className="space-y-0.5">
+                            {group.items.map((sug, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                }}
+                                onClick={() => {
+                                  console.log("[DEBUG SUGGESTION CLICK] Selected suggestion:", sug.name);
+                                  setSelectedSuggestionType(sug.type);
+                                  setSearch(sug.name);
+                                  setDebouncedSearch(sug.name);
+                                  setFilters(prev => ({ ...prev, page: 1 }));
+                                  setShowSuggestions(false);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left"
+                              >
+                                {sug.type === 'hostel' ? (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500">
+                                    <FaBed className="text-xs" />
+                                  </div>
+                                ) : sug.type === 'university' ? (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+                                    <FaUniversity className="text-xs" />
+                                  </div>
+                                ) : (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-500">
+                                    <FaMapMarkerAlt className="text-xs" />
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="font-bold text-sm text-slate-800">{sug.name}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </motion.div>
