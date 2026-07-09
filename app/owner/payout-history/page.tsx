@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, Suspense } from 'react';
 import { 
   FaWallet, 
   FaHistory, 
@@ -31,7 +31,7 @@ import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 
-export default function PayoutHistoryPage() {
+function PayoutHistoryContent() {
   const router = useRouter();
   
   const [payouts, setPayouts] = useState<Payout[]>([]);
@@ -601,5 +601,17 @@ export default function PayoutHistoryPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PayoutHistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <PayoutHistoryContent />
+    </Suspense>
   );
 }

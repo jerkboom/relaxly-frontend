@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 
 import Link from 'next/link';
 
@@ -29,7 +29,7 @@ import { getUniversities } from '../../src/services/universityService';
 import { useAuthStore } from '../../src/store/authStore';
 import { getErrorMessage } from '../../src/utils/errorUtils';
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
@@ -619,5 +619,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 }

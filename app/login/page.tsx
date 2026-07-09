@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 
 import Link from 'next/link';
 
@@ -19,7 +19,7 @@ import { loginUser, resendVerification } from '../../src/services/authService';
 import { useAuthStore } from '../../src/store/authStore';
 import { getErrorMessage } from '../../src/utils/errorUtils';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
@@ -299,5 +299,17 @@ export default function LoginPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

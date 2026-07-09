@@ -1,7 +1,7 @@
 'use client';
 
 import API from '../../../src/lib/axios';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '../../../src/components/auth/ProtectedRoute';
@@ -65,7 +65,7 @@ type CheckoutState =
  * 2. 'confirm' - User confirms the booking, creating a backend snapshot.
  * 3. 'payment' - Backend snapshot is used to initialize Paystack payment.
  */
-export default function BookingPage() {
+function BookingContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -954,5 +954,17 @@ export default function BookingPage() {
         </div>
       </main>
     </ProtectedRoute>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <BookingContent />
+    </Suspense>
   );
 }

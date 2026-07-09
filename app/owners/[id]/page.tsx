@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -38,7 +38,7 @@ interface HostelShort {
   location: string | { address: string; city: string; region: string };
 }
 
-export default function OwnerContactPage() {
+function OwnerContactContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -280,5 +280,17 @@ export default function OwnerContactPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function OwnerContactPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <OwnerContactContent />
+    </Suspense>
   );
 }

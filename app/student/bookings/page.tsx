@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, Suspense } from 'react';
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -207,7 +207,7 @@ const statusColors: Record<string, string> = {
     'bg-slate-200 text-slate-500 border-slate-300',
 };
 
-export default function BookingsPage() {
+function BookingsContent() {
   const { openSidebar } = useNav();
   const { token } =
     useAuthStore();
@@ -882,5 +882,17 @@ export default function BookingsPage() {
           </button>
         </div>
       </main>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      </div>
+    }>
+      <BookingsContent />
+    </Suspense>
   );
 }
