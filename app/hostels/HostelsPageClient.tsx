@@ -23,6 +23,7 @@ import {
 
 import {
   useSearchParams,
+  useRouter,
 } from 'next/navigation';
 
 import Link from 'next/link';
@@ -99,6 +100,7 @@ type ActiveUniversityCount = {
 };
 
 function HostelsPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user, hasHydrated } = useAuthStore();
@@ -411,9 +413,18 @@ function HostelsPageContent() {
       <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-100">
         <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <Link href={getDashboardRoute(user?.role)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200">
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push('/');
+                }
+              }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition hover:bg-slate-200 cursor-pointer"
+            >
               <FaArrowLeft />
-            </Link>
+            </button>
             
             <div className="relative flex-1 group">
               <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />

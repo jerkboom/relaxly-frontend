@@ -117,7 +117,7 @@ export default function BookingPage() {
             const fresh = myBookings.find(b => b._id === pendingBooking._id);
             if (fresh && ['paid', 'success', 'completed'].includes(fresh.paymentStatus)) {
               setCheckoutState('success');
-              router.push(`/payments/success?bookingId=${fresh._id}`);
+              router.replace(`/payments/success?bookingId=${fresh._id}`);
             }
           }
         });
@@ -170,7 +170,7 @@ export default function BookingPage() {
             setCheckoutState('success');
             toast.success('Payment already confirmed!');
             console.log('booking finalized');
-            router.push(`/payments/success?bookingId=${bookingId}`);
+            router.replace(`/payments/success?bookingId=${bookingId}`);
             return;
           }
 
@@ -296,7 +296,7 @@ export default function BookingPage() {
 
     if (pendingBooking) {
       if (['paid', 'success', 'completed'].includes(pendingBooking.paymentStatus)) {
-         router.push(`/payments/success?bookingId=${pendingBooking._id}`);
+         router.replace(`/payments/success?bookingId=${pendingBooking._id}`);
          return;
       }
       setStep('payment');

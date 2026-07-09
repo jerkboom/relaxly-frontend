@@ -61,7 +61,7 @@ export default function VerifyEmailPage() {
 
         // Redirect to login after a brief moment for the toast to be seen
         setTimeout(() => {
-          router.push('/login');
+          router.replace('/login');
         }, 2000);
       } catch (error) {
         setStatus('error');

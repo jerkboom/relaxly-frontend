@@ -14,7 +14,7 @@ export default function RejectedPage() {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
   return (

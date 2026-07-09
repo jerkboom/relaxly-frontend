@@ -117,7 +117,7 @@ export default function StudentDashboardPage() {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
   return (

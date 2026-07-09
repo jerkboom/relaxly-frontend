@@ -107,7 +107,7 @@ export default function VerifyPaymentClient() {
               response.data?.booking?._id;
 
             setTimeout(() => {
-              router.push(
+              router.replace(
                 `/payments/success?bookingId=${bookingId}&reference=${reference}`
               );
             }, 1500);
@@ -130,7 +130,7 @@ export default function VerifyPaymentClient() {
             setMessage(errorMsg);
 
             setTimeout(() => {
-              router.push(
+              router.replace(
                 `/payments/failed?bookingId=${bookingId}&message=${encodeURIComponent(errorMsg)}`
               );
             }, 1500);

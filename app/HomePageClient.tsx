@@ -400,7 +400,7 @@ export default function HomePageClient() {
                           onClick={() => {
                             setIsDropdownOpen(false);
                             logout();
-                            router.push('/');
+                            router.replace('/');
                           }}
                           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition cursor-pointer"
                         >

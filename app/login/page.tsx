@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import Link from 'next/link';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import toast from 'react-hot-toast';
 
@@ -21,6 +21,8 @@ import { getErrorMessage } from '../../src/utils/errorUtils';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
 
   const { setAuth } =
     useAuthStore();
@@ -87,13 +89,13 @@ export default function LoginPage() {
       const userRole = String(user.role);
 
       if (userRole === 'admin') {
-        router.push('/admin/dashboard');
+        router.replace('/admin/dashboard');
         return;
       }
 
       // 1. Check Email Verification First
       if (user.isEmailVerified === false) {
-        router.push('/verify-email-pending');
+        router.replace('/verify-email-pending');
         return;
       }
 
@@ -101,19 +103,19 @@ export default function LoginPage() {
       if (userRole === 'owner') {
         const status = String(user.verificationStatus);
         if (status === 'pending') {
-          router.push('/owner/pending-approval');
+          router.replace('/owner/pending-approval');
         } else if (status === 'rejected') {
-          router.push('/owner/rejected');
+          router.replace('/owner/rejected');
         } else if (status === 'suspended') {
-          router.push('/suspended');
+          router.replace('/suspended');
         } else {
-          router.push('/');
+          router.replace(redirect || '/owner/dashboard');
         }
         return;
       }
 
       // 3. Student dashboard (must be verified to reach here)
-      router.push('/');
+      router.replace(redirect || '/');
     } catch (error: any) {
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
         setUnverifiedEmail(formData.email);

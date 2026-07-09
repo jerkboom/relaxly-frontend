@@ -44,7 +44,7 @@ export default function VerifyEmailPendingPage() {
   const handleLogout = () => {
     localStorage.removeItem('pendingVerificationEmail');
     logout();
-    router.push('/login');
+    router.replace('/login');
   };
 
   return (

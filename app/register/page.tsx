@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 import Link from 'next/link';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import toast from 'react-hot-toast';
 
@@ -31,6 +31,8 @@ import { getErrorMessage } from '../../src/utils/errorUtils';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
 
   const [loading, setLoading] =
     useState(false);
@@ -181,7 +183,7 @@ export default function RegisterPage() {
         'Account created! Please check your email to verify your account.'
       );
 
-      router.push('/verify-email-pending');
+      router.replace('/verify-email-pending');
       return;
     } catch (error: any) {
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
@@ -190,7 +192,7 @@ export default function RegisterPage() {
           error.response.data.message ||
           "This email already has an account. We've sent you a new verification email."
         );
-        router.push('/verify-email-pending');
+        router.replace('/verify-email-pending');
         return;
       }
       toast.error(
@@ -609,7 +611,7 @@ export default function RegisterPage() {
           Already have an account?
 
           <Link
-            href="/login"
+            href={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"}
             className="ml-2 font-bold text-blue-600"
           >
             Login

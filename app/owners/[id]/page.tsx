@@ -131,16 +131,17 @@ export default function OwnerContactPage() {
   return (
     <main className="min-h-screen bg-slate-50 py-12 px-6">
       <div className="mx-auto max-w-4xl">
-        {/* BACK BUTTON */}
         <button
           onClick={() => {
-            if (hostelId) {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else if (hostelId) {
               router.push(`/hostels/${hostelId}`);
             } else {
-              router.push(getDashboardRoute(useAuthStore.getState().user?.role));
+              router.push('/');
             }
           }}
-          className="mb-8 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-600 shadow-sm transition hover:text-blue-600 active:scale-95"
+          className="mb-8 flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-600 shadow-sm transition hover:text-blue-600 active:scale-95 cursor-pointer"
         >
           <FaArrowLeft />
           Back

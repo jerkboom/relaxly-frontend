@@ -36,7 +36,7 @@ export default function ProtectedRoute({
     if (hasHydrated) {
       if (!user || !token) {
         if (pathname !== '/login') {
-          router.replace('/login');
+          router.replace(`/login?redirect=${encodeURIComponent(pathname + window.location.search)}`);
         }
         return;
       }

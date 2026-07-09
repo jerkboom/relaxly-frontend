@@ -156,7 +156,7 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
 
   const handleFetchContact = async () => {
     if (!user) {
-      router.push('/register');
+      router.push(`/register?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
 
@@ -195,7 +195,7 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
     }
 
     if (!user) {
-      router.push('/register');
+      router.push(`/register?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return;
     }
     router.push(`/booking/${roomId}`);
@@ -206,7 +206,7 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
       const { roomId } = e.detail;
       if (roomId) {
         if (!user) {
-          router.push('/register');
+          router.push(`/register?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
           return;
         }
         router.push(`/booking/${roomId}`);
@@ -742,11 +742,10 @@ export default function HostelDetailsClient({ id, initialHostel, initialRooms, r
                   </div>
                 </div>
 
-                {/* ACTION AREA - BOOKING GATED */}
                 <div className="w-full">
                   {!user ? (
                     <button
-                      onClick={() => router.push('/login')}
+                      onClick={() => router.push(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
                       className="w-full flex items-center justify-center gap-3 rounded-[1.5rem] sm:rounded-[2.5rem] bg-slate-900 py-5 sm:py-6 text-sm sm:text-base font-black text-white transition-all hover:bg-slate-800 active:scale-95 shadow-xl shadow-slate-200 px-4"
                     >
                       <FaShieldAlt className="text-blue-400" />
