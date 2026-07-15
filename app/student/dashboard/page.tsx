@@ -24,15 +24,17 @@ import {
   FaWhatsapp,
   FaBars,
   FaChevronRight,
+  FaSpinner,
+  FaCloudUploadAlt,
+  FaTimes
 } from 'react-icons/fa';
 
 import { useNav } from '../layout';
-
-import {
-  useAuthStore,
-} from '../../../src/store/authStore';
-
+import { useAuthStore } from '../../../src/store/authStore';
 import API from '../../../src/lib/axios';
+import toast from 'react-hot-toast';
+import { submitAmbassadorApplication } from '../../../src/services/ambassadorService';
+import { uploadPublicFile } from '../../../src/services/authService';
 
 interface DashboardData {
   stats: {
@@ -71,7 +73,7 @@ import { useSettingsStore } from '../../../src/store/settingsStore';
 export default function StudentDashboardPage() {
   const router = useRouter();
   const { openSidebar } = useNav();
-  const { token, logout } =
+  const { token, logout, user } =
     useAuthStore();
   
   const { supportSettings } = useSettingsStore();
@@ -81,25 +83,144 @@ export default function StudentDashboardPage() {
       null
     );
 
+  // Ambassador application modal states
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [submittingApplication, setSubmittingApplication] = useState(false);
+  const [uploadingId, setUploadingId] = useState(false);
+  const [uploadingPic, setUploadingPic] = useState(false);
+
+  // Form states
+  const [appForm, setAppForm] = useState({
+    faculty: '',
+    level: '100',
+    hallHostel: '',
+    whatsapp: '',
+    instagramUsername: '',
+    tiktokUsername: '',
+    groupsManagedCount: 0,
+    estimatedStudentReach: 0,
+    leadershipExperience: '',
+    whyBecomeAmbassador: '',
+    studentIdUrl: '',
+    profilePictureUrl: '',
+    agreedToTerms: false
+  });
+
+  const handleOpenApplyModal = () => {
+    const profile = (user as any)?.ambassadorProfile || {};
+    setAppForm({
+      faculty: profile.faculty || '',
+      level: profile.level || '100',
+      hallHostel: profile.hallHostel || '',
+      whatsapp: profile.whatsapp || user?.phone || '',
+      instagramUsername: profile.instagramUsername || '',
+      tiktokUsername: profile.tiktokUsername || '',
+      groupsManagedCount: profile.groupsManagedCount || 0,
+      estimatedStudentReach: profile.estimatedStudentReach || 0,
+      leadershipExperience: profile.leadershipExperience || '',
+      whyBecomeAmbassador: profile.whyBecomeAmbassador || '',
+      studentIdUrl: profile.studentIdUrl || '',
+      profilePictureUrl: profile.profilePictureUrl || '',
+      agreedToTerms: profile.agreedToTerms || false
+    });
+    setIsApplyModalOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'studentIdUrl' | 'profilePictureUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size cannot exceed 5MB.');
+      return;
+    }
+
+    const isId = field === 'studentIdUrl';
+    if (isId) setUploadingId(true);
+    else setUploadingPic(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await uploadPublicFile(formData);
+      const url = res.fileUrl || res.url || res.data?.fileUrl;
+      if (!url) throw new Error('Secure URL missing from upload response');
+      setAppForm(prev => ({ ...prev, [field]: url }));
+      toast.success('File uploaded successfully!');
+    } catch (err: any) {
+      toast.error('Failed to upload file: ' + err.message);
+    } finally {
+      if (isId) setUploadingId(false);
+      else setUploadingPic(false);
+    }
+  };
+
+  const handleSubmitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appForm.faculty.trim() || !appForm.hallHostel.trim() || !appForm.whatsapp.trim() || !appForm.whyBecomeAmbassador.trim()) {
+      toast.error('Please fill in all required fields.');
+      return;
+    }
+    if (!appForm.studentIdUrl) {
+      toast.error('Please upload your Student ID to apply.');
+      return;
+    }
+    if (!appForm.agreedToTerms) {
+      toast.error('You must agree to represent Relaxly professionally.');
+      return;
+    }
+
+    setSubmittingApplication(true);
+    try {
+      await submitAmbassadorApplication({
+        university: user?.schoolName || (user as any)?.university?.name || 'Accra Tech',
+        faculty: appForm.faculty,
+        level: appForm.level,
+        hallHostel: appForm.hallHostel,
+        phone: user?.phone || appForm.whatsapp,
+        whatsapp: appForm.whatsapp,
+        instagramUsername: appForm.instagramUsername,
+        tiktokUsername: appForm.tiktokUsername,
+        groupsManagedCount: Number(appForm.groupsManagedCount) || 0,
+        estimatedStudentReach: Number(appForm.estimatedStudentReach) || 0,
+        leadershipExperience: appForm.leadershipExperience,
+        whyBecomeAmbassador: appForm.whyBecomeAmbassador,
+        studentIdUrl: appForm.studentIdUrl,
+        profilePictureUrl: appForm.profilePictureUrl,
+        agreedToTerms: appForm.agreedToTerms
+      });
+      toast.success('Your Ambassador Application has been submitted successfully!');
+      setIsApplyModalOpen(false);
+      await fetchDashboard();
+    } catch (err: any) {
+      toast.error('Failed to submit application: ' + err.message);
+    } finally {
+      setSubmittingApplication(false);
+    }
+  };
+
   const fetchDashboard =
     useCallback(
       async () => {
         try {
           if (!token) return;
 
-          const response =
-            await API.get(
-              '/dashboard/student',
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
+          const [dashboardRes, profileRes] = await Promise.all([
+            API.get('/dashboard/student', {
+              headers: { Authorization: `Bearer ${token}` }
+            }),
+            API.get('/users/profile', {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+          ]);
 
-          setDashboard(
-            response.data
-          );
+          setDashboard(dashboardRes.data);
+          
+          const profileData = profileRes.data?.data || profileRes.data;
+          if (profileData) {
+            useAuthStore.getState().setAuth(profileData, token);
+          }
         } catch {
           // Silent error, will show 0s
         }
@@ -167,6 +288,81 @@ export default function StudentDashboardPage() {
 
         {/* CONTENT */}
         <div className="mx-auto max-w-7xl px-6 py-10">
+
+          {/* AMBASSADOR STATUS BANNER */}
+          {/* AMBASSADOR STATUS BANNERS */}
+          {user?.isAmbassador && user?.ambassadorStatus === 'pending' && (
+            <div className="mb-8 rounded-3xl bg-white p-6 border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-orange-50 text-orange-600 px-2.5 py-0.5 rounded-full border border-orange-100">
+                  Under Review
+                </span>
+                <h3 className="text-lg font-bold text-slate-800 mt-2">Ambassador Application Pending</h3>
+                <p className="text-slate-500 text-xs mt-1">Our campus coordination team is reviewing your application details.</p>
+              </div>
+              <span className="text-sm font-bold text-slate-400 self-start sm:self-center px-4 py-2 bg-slate-100 rounded-xl flex items-center gap-1.5 border border-slate-200">
+                <FaClock className="h-4 w-4 text-orange-500" />
+                Pending Marketing Approval
+              </span>
+            </div>
+          )}
+
+          {user?.isAmbassador && user?.ambassadorStatus === 'approved' && (
+            <div className="mb-8 rounded-3xl bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-blue-500/40 px-2.5 py-0.5 rounded-full border border-blue-400/20">
+                  Approved Partner
+                </span>
+                <h3 className="text-xl font-bold mt-2">Your Ambassador Dashboard is active!</h3>
+                <p className="text-blue-100 text-xs mt-1">Track your referred bookings, earnings, and campus ranking.</p>
+              </div>
+              <Link
+                href="/student/ambassador"
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-50 transition self-start sm:self-center"
+              >
+                Go to Ambassador Dashboard
+              </Link>
+            </div>
+          )}
+
+          {user?.isAmbassador && user?.ambassadorStatus === 'rejected' && (
+            <div className="mb-8 rounded-3xl bg-red-50/50 p-6 border border-red-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex-1">
+                <span className="text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-700 px-2.5 py-0.5 rounded-full border border-red-200">
+                  Application Rejected
+                </span>
+                <h3 className="text-lg font-bold text-slate-800 mt-2">Ambassador Application Action Required</h3>
+                {user?.rejectionReason && (
+                  <p className="text-red-700 text-xs mt-1 font-bold">Reason: {user.rejectionReason}</p>
+                )}
+                <p className="text-slate-500 text-xs mt-1">Please review the reason and update your application details to submit again.</p>
+              </div>
+              <button
+                onClick={handleOpenApplyModal}
+                className="rounded-2xl bg-red-650 hover:bg-red-700 text-sm font-bold text-white px-5 py-3 transition self-start sm:self-center shrink-0 shadow-sm"
+              >
+                Update Application
+              </button>
+            </div>
+          )}
+
+          {(!user?.isAmbassador || user?.ambassadorStatus === 'none') && (
+            <div className="mb-8 rounded-3xl bg-white p-6 border border-slate-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full border border-blue-100">
+                  Earn Income
+                </span>
+                <h3 className="text-lg font-bold text-slate-800 mt-2">Become a Relaxly Campus Ambassador</h3>
+                <p className="text-slate-500 text-xs mt-1">Help friends find verified accommodation and earn commissions on every booking.</p>
+              </div>
+              <button
+                onClick={handleOpenApplyModal}
+                className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition self-start sm:self-center"
+              >
+                Apply Now
+              </button>
+            </div>
+          )}
 
           {/* STATS */}
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -571,8 +767,14 @@ export default function StudentDashboardPage() {
                   <FaQuestionCircle />
                 </div>
                 
-                <h2 className="text-4xl font-black tracking-tight">
-                  Need Help & Support?
+                <h2 className="text-4xl font-black tracking-tight flex flex-wrap items-center gap-3">
+                  <span>Need Help & Support?</span>
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                    supportSettings.isOnline ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${supportSettings.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`}></span>
+                    {supportSettings.isOnline ? 'Online' : 'Offline'}
+                  </span>
                 </h2>
                 
                 <p className="mt-4 text-lg text-slate-400">
@@ -581,50 +783,330 @@ export default function StudentDashboardPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 w-full lg:w-auto">
-                <a 
-                  href={`mailto:${supportSettings.email}`}
-                  className="flex items-center gap-4 rounded-[1.5rem] bg-slate-800 p-5 transition hover:bg-slate-700"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
-                    <FaEnvelope className="text-xl" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Email Us</p>
-                    <p className="font-bold">{supportSettings.email}</p>
-                  </div>
-                </a>
+                {(supportSettings.emailObj?.enabled !== false) && (
+                  <a 
+                    href={`mailto:${supportSettings.emailObj?.address || supportSettings.email}`}
+                    className="flex items-center gap-4 rounded-[1.5rem] bg-slate-800 p-5 transition hover:bg-slate-700"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+                      <FaEnvelope className="text-xl" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        {supportSettings.emailObj?.displayName || 'Email Us'}
+                      </p>
+                      <p className="font-bold">{supportSettings.emailObj?.address || supportSettings.email}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {supportSettings.emailObj?.responseTime || 'Response within 2 hours'}
+                      </p>
+                    </div>
+                  </a>
+                )}
 
-                <a 
-                  href={`tel:${supportSettings.phone}`}
-                  className="flex items-center gap-4 rounded-[1.5rem] bg-slate-800 p-5 transition hover:bg-slate-700"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
-                    <FaPhone className="text-xl" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Call Us</p>
-                    <p className="font-bold">{supportSettings.phone}</p>
-                  </div>
-                </a>
-
-                <a 
-                  href={`https://wa.me/${supportSettings.whatsapp.replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-4 rounded-[1.5rem] bg-emerald-600 p-5 transition hover:bg-emerald-700 sm:col-span-2 lg:col-span-1"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white">
-                    <FaWhatsapp className="text-2xl" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-emerald-100">WhatsApp Support</p>
-                    <p className="font-black text-xl">Chat with us</p>
-                  </div>
-                </a>
+                {(supportSettings.whatsappObj?.enabled !== false) && (
+                  <a 
+                    href={`https://wa.me/${(supportSettings.whatsappObj?.number || supportSettings.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(supportSettings.whatsappObj?.defaultMessage || 'Hello Relaxly Support, I need assistance with my booking.')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-4 rounded-[1.5rem] bg-emerald-600 p-5 transition hover:bg-emerald-700 sm:col-span-2 lg:col-span-1"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 text-white">
+                      <FaWhatsapp className="text-2xl" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-emerald-100">
+                        {supportSettings.whatsappObj?.displayName || 'WhatsApp Support'}
+                      </p>
+                      <p className="font-black text-xl">Chat with us</p>
+                      <p className="text-xs text-emerald-100/80 mt-0.5">
+                        {supportSettings.whatsappObj?.number || supportSettings.whatsapp}
+                      </p>
+                    </div>
+                  </a>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </main>
+      {/* AMBASSADOR APPLICATION MODAL */}
+      {isApplyModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-blue-50/50">
+              <div>
+                <h3 className="text-lg font-black text-slate-800">
+                  {user?.ambassadorStatus === 'rejected' ? 'Update Ambassador Application' : 'Become a Relaxly Campus Ambassador'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">Earn commissions by promoting verified student hostels on your campus.</p>
+              </div>
+              <button
+                onClick={() => setIsApplyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmitApplication} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Auto-filled Section */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-3">Academic Profile (Read-Only)</h4>
+                <div className="grid gap-4 sm:grid-cols-2 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-500 block mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={user?.name || ''}
+                      readOnly
+                      className="w-full rounded-xl border border-slate-200 bg-slate-100/50 px-3.5 py-2 font-bold text-slate-700 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-500 block mb-1">Email Address</label>
+                    <input
+                      type="text"
+                      value={user?.email || ''}
+                      readOnly
+                      className="w-full rounded-xl border border-slate-200 bg-slate-100/50 px-3.5 py-2 font-bold text-slate-700 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-500 block mb-1">University</label>
+                    <input
+                      type="text"
+                      value={user?.schoolName || (user as any)?.university?.name || 'Accra Tech'}
+                      readOnly
+                      className="w-full rounded-xl border border-slate-200 bg-slate-100/50 px-3.5 py-2 font-bold text-slate-700 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold text-slate-500 block mb-1">Student ID Card Number</label>
+                    <input
+                      type="text"
+                      value={user?.studentId || 'N/A'}
+                      readOnly
+                      className="w-full rounded-xl border border-slate-200 bg-slate-100/50 px-3.5 py-2 font-bold text-slate-700 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ambassador Specific Fields */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Faculty *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Engineering / Science"
+                    value={appForm.faculty}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, faculty: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Level *</label>
+                  <select
+                    value={appForm.level}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, level: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  >
+                    <option value="100">Level 100</option>
+                    <option value="200">Level 200</option>
+                    <option value="300">Level 300</option>
+                    <option value="400">Level 400</option>
+                    <option value="postgraduate">Postgraduate</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Hall / Hostel of Residence *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Limann Hall"
+                    value={appForm.hallHostel}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, hallHostel: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">WhatsApp Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. 0541234567"
+                    value={appForm.whatsapp}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, whatsapp: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Instagram Handle (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. @username"
+                    value={appForm.instagramUsername}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, instagramUsername: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">TikTok Handle (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. @username"
+                    value={appForm.tiktokUsername}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, tiktokUsername: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Student Groups Managed (Optional)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 3 groups"
+                    value={appForm.groupsManagedCount}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, groupsManagedCount: Number(e.target.value) }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Estimated Student Reach *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    placeholder="e.g. 500 students"
+                    value={appForm.estimatedStudentReach}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, estimatedStudentReach: Number(e.target.value) }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Leadership Experience (Optional)</label>
+                  <textarea
+                    placeholder="List any class rep, senate, or club leadership roles..."
+                    value={appForm.leadershipExperience}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, leadershipExperience: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500 h-20 resize-none"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Why do you want to become a Relaxly Ambassador? *</label>
+                  <textarea
+                    required
+                    placeholder="Tell us why you would be a great ambassador..."
+                    value={appForm.whyBecomeAmbassador}
+                    onChange={(e) => setAppForm(prev => ({ ...prev, whyBecomeAmbassador: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-800 outline-none focus:border-blue-500 h-24 resize-none"
+                  />
+                </div>
+
+                {/* Upload Section */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Upload Student ID Card *</label>
+                  <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-4 text-center cursor-pointer hover:border-blue-400">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={(e) => handleFileUpload(e, 'studentIdUrl')}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                    {uploadingId ? (
+                      <FaSpinner className="animate-spin text-lg text-blue-600" />
+                    ) : appForm.studentIdUrl ? (
+                      <span className="text-[10px] text-emerald-600 font-black truncate max-w-[180px]">
+                        ID Card Uploaded ✓
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        <FaCloudUploadAlt className="h-4 w-4" /> Click to Upload (Max 5MB)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-slate-700">Upload Profile Picture (Optional)</label>
+                  <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-white p-4 text-center cursor-pointer hover:border-blue-400">
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      onChange={(e) => handleFileUpload(e, 'profilePictureUrl')}
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                    />
+                    {uploadingPic ? (
+                      <FaSpinner className="animate-spin text-lg text-blue-600" />
+                    ) : appForm.profilePictureUrl ? (
+                      <span className="text-[10px] text-emerald-600 font-black truncate max-w-[180px]">
+                        Photo Uploaded ✓
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        <FaCloudUploadAlt className="h-4 w-4" /> Click to Upload (Max 5MB)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Terms Agreement */}
+                <div className="sm:col-span-2 mt-2">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={appForm.agreedToTerms}
+                      onChange={(e) => setAppForm(prev => ({ ...prev, agreedToTerms: e.target.checked }))}
+                      required
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-xs text-blue-900 font-semibold leading-relaxed">
+                      I agree to represent Relaxly professionally, promote hostels ethically, and abide by the Relaxly Ambassador Agreement.
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit footer buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setIsApplyModalOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-xs font-bold transition"
+                  disabled={submittingApplication}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingApplication}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+                >
+                  {submittingApplication ? (
+                    <>
+                      <FaSpinner className="animate-spin h-3.5 w-3.5" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <span>{user?.ambassadorStatus === 'rejected' ? 'Update & Reapply' : 'Submit Application'}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

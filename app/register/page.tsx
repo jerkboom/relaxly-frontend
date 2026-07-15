@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 
 import Link from 'next/link';
 
@@ -22,9 +22,10 @@ import {
   FaSpinner,
   FaCloudUploadAlt,
   FaCheckCircle,
+  FaUsers
 } from 'react-icons/fa';
 
-import { registerUser, RegisterData, uploadPublicFile } from '../../src/services/authService';
+import { registerUser, RegisterData, uploadPublicFile, trackReferralClick } from '../../src/services/authService';
 import { getUniversities } from '../../src/services/universityService';
 import { useAuthStore } from '../../src/store/authStore';
 import { getErrorMessage } from '../../src/utils/errorUtils';
@@ -33,6 +34,11 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
+  const refCode = searchParams.get('ref') || searchParams.get('referral');
+  const refSource = searchParams.get('source') || 'link';
+  const refCampaignId = searchParams.get('campaignId') || searchParams.get('campaign') || undefined;
+  const refAssetId = searchParams.get('assetId') || searchParams.get('asset') || undefined;
+  const hasTrackedStart = useRef(false);
 
   const [loading, setLoading] =
     useState(false);
@@ -88,9 +94,16 @@ function RegisterContent() {
     }).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (refCode) {
+      trackReferralClick(refCode, refSource, 'click', refCampaignId, refAssetId).catch((err) => {
+        console.error('Failed to track referral click:', err);
+      });
+    }
+  }, [refCode, refSource, refCampaignId, refAssetId]);
+
   const [formData, setFormData] =
     useState({
-
       name: '',
       email: '',
       password: '',
@@ -104,7 +117,76 @@ function RegisterContent() {
       customUniversity: '',
       studentId: '',
       agreeToPolicies: false,
+      referralCode: refCode || '',
     });
+
+  const [applyAsAmbassador, setApplyAsAmbassador] = useState(false);
+  const [ambassadorFields, setAmbassadorFields] = useState({
+    faculty: '',
+    level: '100',
+    hallHostel: '',
+    whatsapp: '',
+    instagram: '',
+    tiktok: '',
+    groupsCount: 0,
+    reach: 0,
+    experience: '',
+    reason: '',
+    studentIdUrl: '',
+    profilePicUrl: '',
+    agreed: false
+  });
+
+  const [ambassadorIdUploading, setAmbassadorIdUploading] = useState(false);
+  const [ambassadorIdFileName, setAmbassadorIdFileName] = useState('');
+  const [ambassadorPicUploading, setAmbassadorPicUploading] = useState(false);
+  const [ambassadorPicFileName, setAmbassadorPicFileName] = useState('');
+
+  const handleAmbassadorFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'studentIdUrl' | 'profilePicUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size cannot exceed 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only JPG, PNG, and PDF files are allowed');
+      return;
+    }
+
+    const uploadData = new FormData();
+    uploadData.append('images', file);
+
+    try {
+      if (field === 'studentIdUrl') {
+        setAmbassadorIdUploading(true);
+      } else {
+        setAmbassadorPicUploading(true);
+      }
+      
+      const res = await uploadPublicFile(uploadData);
+      const url = res.images?.[0];
+      if (url) {
+        setAmbassadorFields(prev => ({ ...prev, [field]: url }));
+        if (field === 'studentIdUrl') {
+          setAmbassadorIdFileName(file.name);
+        } else {
+          setAmbassadorPicFileName(file.name);
+        }
+        toast.success(`${field === 'studentIdUrl' ? 'Student ID' : 'Profile picture'} uploaded successfully!`);
+      } else {
+        toast.error('Failed to retrieve upload URL');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to upload file');
+    } finally {
+      setAmbassadorIdUploading(false);
+      setAmbassadorPicUploading(false);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -114,6 +196,13 @@ function RegisterContent() {
     const { name, value, type } = e.target;
     const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
     
+    if (refCode && !hasTrackedStart.current && value.trim() !== '') {
+      hasTrackedStart.current = true;
+      trackReferralClick(refCode, refSource, 'registration_started', refCampaignId, refAssetId).catch((err) => {
+        console.error('Failed to track registration start:', err);
+      });
+    }
+
     setFormData({
       ...formData,
       [name]: val,
@@ -148,26 +237,65 @@ function RegisterContent() {
       return;
     }
 
-    try {
-    setLoading(true);
-
-    const payload: RegisterData = {
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      gender: formData.gender,
-      phone: formData.phone,
-      role: formData.role as "student" | "owner",        // @ts-ignore
-      accessCode: formData.ownerAccessCode,
-      university: formData.role === 'student' ? formData.university : undefined,
-      customUniversity: formData.role === 'student' && formData.university === 'other' ? formData.customUniversity : undefined,
-      studentId: formData.role === 'student' ? formData.studentId : undefined,
-      agreeToPolicies: formData.agreeToPolicies,
-    };
-
-    if (formData.role === 'owner') {
-      payload.governmentIdUrl = formData.governmentIdUrl;
+    if (formData.role === 'student' && applyAsAmbassador) {
+      if (!ambassadorFields.reason.trim()) {
+        toast.error('Please state why you want to become a Relaxly Campus Ambassador.');
+        return;
+      }
+      if (!ambassadorFields.studentIdUrl) {
+        toast.error('Please upload your Student ID to apply as an ambassador.');
+        return;
+      }
+      if (!ambassadorFields.profilePicUrl) {
+        toast.error('Please upload a profile picture to apply as an ambassador.');
+        return;
+      }
+      if (!ambassadorFields.agreed) {
+        toast.error('You must agree to represent Relaxly professionally to apply.');
+        return;
+      }
     }
+
+    try {
+      setLoading(true);
+
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        gender: formData.gender,
+        phone: formData.phone,
+        role: formData.role as "student" | "owner",
+        accessCode: formData.ownerAccessCode,
+        university: formData.role === 'student' ? formData.university : undefined,
+        customUniversity: formData.role === 'student' && formData.university === 'other' ? formData.customUniversity : undefined,
+        studentId: formData.role === 'student' ? formData.studentId : undefined,
+        agreeToPolicies: formData.agreeToPolicies,
+        refCode: formData.referralCode || undefined
+      };
+
+      if (formData.role === 'owner') {
+        payload.governmentIdUrl = formData.governmentIdUrl;
+      }
+
+      if (formData.role === 'student' && applyAsAmbassador) {
+        payload.applyAsAmbassador = true;
+        payload.ambassadorUniversity = formData.university === 'other' ? formData.customUniversity : universities.find(u => u._id === formData.university)?.name || 'Unspecified';
+        payload.ambassadorFaculty = ambassadorFields.faculty;
+        payload.ambassadorLevel = ambassadorFields.level;
+        payload.ambassadorHallHostel = ambassadorFields.hallHostel;
+        payload.ambassadorPhone = formData.phone;
+        payload.ambassadorWhatsapp = ambassadorFields.whatsapp;
+        payload.ambassadorInstagram = ambassadorFields.instagram;
+        payload.ambassadorTiktok = ambassadorFields.tiktok;
+        payload.ambassadorGroupsCount = ambassadorFields.groupsCount;
+        payload.ambassadorReach = ambassadorFields.reach;
+        payload.ambassadorExperience = ambassadorFields.experience;
+        payload.ambassadorReason = ambassadorFields.reason;
+        payload.ambassadorStudentIdUrl = ambassadorFields.studentIdUrl;
+        payload.ambassadorProfilePicUrl = ambassadorFields.profilePicUrl;
+        payload.ambassadorAgreed = ambassadorFields.agreed;
+      }
 
       const response =
         await registerUser(payload);
@@ -423,6 +551,26 @@ function RegisterContent() {
                   />
                 </div>
               </div>
+
+              {/* REFERRAL CODE */}
+              <div className="md:col-span-2">
+                <label className="mb-2 sm:mb-3 block text-sm sm:text-base font-semibold text-gray-700">
+                  Referral Code (Optional)
+                </label>
+
+                <div className="flex items-center rounded-2xl border border-gray-200 bg-gray-50 px-4 sm:px-5 transition focus-within:border-blue-500 focus-within:bg-white">
+                  <FaUsers className="text-gray-400 shrink-0" />
+
+                  <input
+                    type="text"
+                    name="referralCode"
+                    placeholder="Enter referral code if you were invited (e.g., KNUST-RICHARD-123)"
+                    value={formData.referralCode}
+                    onChange={handleChange}
+                    className="w-full bg-transparent px-3 sm:px-4 py-4 sm:py-5 text-sm sm:text-base text-gray-900 placeholder:text-gray-400 outline-none"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
@@ -569,6 +717,208 @@ function RegisterContent() {
               </div>
             </div>
           </div>
+
+          {/* BECOME AN AMBASSADOR OPTIONAL SECTION */}
+          {formData.role === 'student' && (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-4 sm:p-6 space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyAsAmbassador}
+                  onChange={(e) => setApplyAsAmbassador(e.target.checked)}
+                  className="h-5 w-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-base font-bold text-blue-900">
+                  Become a Relaxly Campus Ambassador (Optional)
+                </span>
+              </label>
+
+              {applyAsAmbassador && (
+                <div className="pt-4 border-t border-blue-100/50 space-y-4 grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2 text-sm text-blue-700 font-medium">
+                    Help Relaxly grow on your campus and earn commissions from bookings you refer!
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Faculty</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Science / Arts"
+                      value={ambassadorFields.faculty}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, faculty: e.target.value })}
+                      required={applyAsAmbassador}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Level</label>
+                    <select
+                      value={ambassadorFields.level}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, level: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    >
+                      <option value="100">Level 100</option>
+                      <option value="200">Level 200</option>
+                      <option value="300">Level 300</option>
+                      <option value="400">Level 400</option>
+                      <option value="postgraduate">Postgraduate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Hall / Hostel</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Limann Hall"
+                      value={ambassadorFields.hallHostel}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, hallHostel: e.target.value })}
+                      required={applyAsAmbassador}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">WhatsApp Number</label>
+                    <input
+                      type="tel"
+                      placeholder="e.g. 0541234567"
+                      value={ambassadorFields.whatsapp}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, whatsapp: e.target.value })}
+                      required={applyAsAmbassador}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Instagram Handle (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="@username"
+                      value={ambassadorFields.instagram}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, instagram: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">TikTok Handle (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="@username"
+                      value={ambassadorFields.tiktok}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, tiktok: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Student Groups You Manage</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 3"
+                      value={ambassadorFields.groupsCount}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, groupsCount: Number(e.target.value) })}
+                      min="0"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Estimated Student Reach</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 500"
+                      value={ambassadorFields.reach}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, reach: Number(e.target.value) })}
+                      min="0"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Leadership Experience</label>
+                    <textarea
+                      placeholder="List any class rep, senate, or club leadership roles..."
+                      value={ambassadorFields.experience}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, experience: e.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500 h-20 resize-none"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Why do you want to become an ambassador? *</label>
+                    <textarea
+                      placeholder="Tell us why you'd be a great ambassador..."
+                      value={ambassadorFields.reason}
+                      onChange={(e) => setAmbassadorFields({ ...ambassadorFields, reason: e.target.value })}
+                      required={applyAsAmbassador}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none focus:border-blue-500 h-24 resize-none"
+                    />
+                  </div>
+
+                  {/* Upload Student ID */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Upload Student ID *</label>
+                    <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 text-center cursor-pointer hover:border-blue-400">
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => handleAmbassadorFileUpload(e, 'studentIdUrl')}
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                      />
+                      {ambassadorIdUploading ? (
+                        <FaSpinner className="animate-spin text-xl text-blue-600" />
+                      ) : ambassadorFields.studentIdUrl ? (
+                        <span className="text-xs text-emerald-600 font-bold truncate max-w-[150px]">
+                          {ambassadorIdFileName || 'Uploaded'}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500 font-medium">Click to upload ID (Max 5MB)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Upload Profile Pic */}
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Upload Profile Picture *</label>
+                    <div className="relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white p-4 text-center cursor-pointer hover:border-blue-400">
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png"
+                        onChange={(e) => handleAmbassadorFileUpload(e, 'profilePicUrl')}
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                      />
+                      {ambassadorPicUploading ? (
+                        <FaSpinner className="animate-spin text-xl text-blue-600" />
+                      ) : ambassadorFields.profilePicUrl ? (
+                        <span className="text-xs text-emerald-600 font-bold truncate max-w-[150px]">
+                          {ambassadorPicFileName || 'Uploaded'}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500 font-medium">Click to upload photo (Max 5MB)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2 mt-2">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={ambassadorFields.agreed}
+                        onChange={(e) => setAmbassadorFields({ ...ambassadorFields, agreed: e.target.checked })}
+                        required={applyAsAmbassador}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-blue-900 font-medium leading-relaxed">
+                        I agree to represent Relaxly professionally and abide by the ambassador code of conduct.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* LEGAL CONSENT */}
           <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200">

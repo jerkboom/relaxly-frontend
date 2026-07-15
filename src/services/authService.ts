@@ -162,3 +162,19 @@ export const uploadPublicFile = async (formData: FormData) => {
   return response.data?.data || response.data;
 };
 
+/**
+ * Tracks a referral link click on page load.
+ * 
+ * Endpoint: POST /ambassadors/clicks
+ */
+export const trackReferralClick = async (
+  referralCode: string, 
+  source: string = 'link', 
+  clickType: string = 'click',
+  campaignId?: string,
+  assetId?: string
+) => {
+  const response = await API.post('/ambassadors/clicks', { referralCode, source, clickType, campaignId, assetId });
+  return response.data?.data || response.data;
+};
+

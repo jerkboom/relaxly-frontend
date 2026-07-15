@@ -35,6 +35,13 @@ interface User {
   isEmailVerified: boolean;
   verificationStatus: 'pending' | 'approved' | 'rejected' | 'suspended';
   rejectionReason?: string;
+  isAmbassador?: boolean;
+  ambassadorStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'suspended' | 'inactive';
+  ambassadorRole?: 'ambassador' | 'campus_leader' | 'regional_manager';
+  phone?: string;
+  schoolName?: string;
+  studentId?: string;
+  ambassadorProfile?: any;
 }
 
 interface AuthState {

@@ -22,6 +22,24 @@ interface SupportSettings {
   email: string;
   phone: string;
   whatsapp: string;
+  whatsappObj?: {
+    number: string;
+    displayName: string;
+    defaultMessage: string;
+    enabled: boolean;
+  };
+  emailObj?: {
+    address: string;
+    displayName: string;
+    responseTime: string;
+    enabled: boolean;
+  };
+  workingHours?: {
+    timezone: string;
+    weekdays: { open: string; close: string };
+    weekend: { open: string; close: string };
+  };
+  isOnline?: boolean;
 }
 
 interface SettingsState {
@@ -53,14 +71,21 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   fetchSettings: async () => {
     try {
       const data = await getPublicSettings();
+      const rawSupport = data.supportSettings || {};
+      const normalizedSupport = {
+        email: typeof rawSupport.email === 'string' ? rawSupport.email : (rawSupport.email?.address || 'support@relaxly.com'),
+        phone: rawSupport.phone || '+233 XX XXX XXXX',
+        whatsapp: typeof rawSupport.whatsapp === 'string' ? rawSupport.whatsapp : (rawSupport.whatsapp?.number || '+233000000000'),
+        whatsappObj: typeof rawSupport.whatsapp === 'object' ? rawSupport.whatsapp : undefined,
+        emailObj: typeof rawSupport.email === 'object' ? rawSupport.email : undefined,
+        workingHours: rawSupport.workingHours,
+        isOnline: rawSupport.isOnline
+      };
+
       set({ 
         maintenanceMode: !!data.maintenanceMode, 
         maintenanceMessage: data.maintenanceMessage || 'Platform is currently under maintenance.',
-        supportSettings: data.supportSettings || {
-          email: 'support@relaxly.com',
-          phone: '+233 XX XXX XXXX',
-          whatsapp: '+233000000000'
-        },
+        supportSettings: normalizedSupport,
         duplicateBookingWindowMs: Number(data.duplicateBookingWindowMs) || 20 * 24 * 60 * 60 * 1000,
         isLoading: false 
       });
