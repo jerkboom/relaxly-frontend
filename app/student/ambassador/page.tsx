@@ -319,50 +319,75 @@ export default function AmbassadorDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-20">
+    <main className="min-h-screen bg-slate-50 pb-20 overflow-x-hidden">
       {/* HEADER */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/student/dashboard"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
-            >
-              <FaChevronLeft />
-            </Link>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6 py-3 sm:py-4">
+
+          {/* Back button — fixed 44×44 square */}
+          <Link
+            href="/student/dashboard"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+          >
+            <FaChevronLeft />
+          </Link>
+
+          {/* Title + badge — takes all remaining space, never pushes action buttons */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="truncate text-base sm:text-2xl font-black text-slate-900 leading-tight">
                 Ambassador Portal
-                {stats && (
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${getBadgeColor(stats.profile.badge)}`}>
-                    {stats.profile.badge}
-                  </span>
-                )}
               </h1>
-              <p className="text-xs text-slate-500 hidden sm:block">
-                {stats ? getRoleLabel(stats.profile.role) : 'Campus Partner'} • {stats?.profile.university}
-              </p>
+              {/* Badge: inline on sm+, sits on its own line on very small screens via flex-wrap */}
+              {stats && (
+                <span className={`shrink-0 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${getBadgeColor(stats.profile.badge)}`}>
+                  {stats.profile.badge}
+                </span>
+              )}
             </div>
+            <p className="text-xs text-slate-500 hidden sm:block truncate mt-0.5">
+              {stats ? getRoleLabel(stats.profile.role) : 'Campus Partner'} • {stats?.profile.university}
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 relative">
-            {/* NOTIFICATION BELL */}
+          {/* Action buttons — Copy first (left), Notification second (right)
+              ORDER MATTERS: notification is last in DOM so its dropdown (absolute right-0)
+              anchors to the rightmost element and drops below it, never overlapping the copy button.
+              The outer `relative` div is the sole positioning context for the dropdown;
+              the button itself does NOT have `relative` to avoid nested stacking contexts. */}
+          <div className="flex shrink-0 items-center gap-2">
+
+            {/* Copy button — 44×44 on mobile, expands on lg+ */}
+            <button
+              onClick={handleCopyLink}
+              className="flex h-11 w-11 lg:w-auto lg:px-4 items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 transition"
+              title="Copy Invite Link"
+            >
+              <FaCopy className="shrink-0" />
+              <span className="hidden lg:inline">Copy Invite Link</span>
+            </button>
+
+            {/* Notification bell — rightmost, dropdown anchors to this element */}
             <div className="relative">
+              {/* Note: no `relative` on the button itself — badge uses outer div as anchor */}
               <button
                 onClick={() => setShowNotificationsDropdown(!showNotificationsDropdown)}
-                className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+                className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
                 title="Notifications"
               >
-                <FaBell className="text-lg" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
+                <FaBell />
               </button>
 
+              {/* Unread badge — absolutely positioned within outer relative div */}
+              {unreadCount > 0 && (
+                <span className="pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+
+              {/* Notification dropdown — anchored right-0 of the bell's relative wrapper */}
               {showNotificationsDropdown && (
-                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in slide-in-from-top-3 duration-150">
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in slide-in-from-top-3 duration-150">
                   <div className="flex items-center justify-between border-b border-slate-50 pb-2 mb-2">
                     <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Notifications</span>
                     {unreadCount > 0 && (
@@ -388,7 +413,7 @@ export default function AmbassadorDashboard() {
                           }`}
                         >
                           <div className="flex justify-between items-start gap-1">
-                            <strong className="font-bold block truncate max-w-[200px]" title={notif.title}>{notif.title}</strong>
+                            <strong className="font-bold block truncate" title={notif.title}>{notif.title}</strong>
                             {!notif.read && <span className="h-1.5 w-1.5 rounded-full bg-blue-600 shrink-0 mt-1" />}
                           </div>
                           <p className="text-slate-500 mt-1 text-[11px] leading-relaxed">{notif.message}</p>
@@ -403,22 +428,18 @@ export default function AmbassadorDashboard() {
               )}
             </div>
 
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition"
-            >
-              <FaCopy />
-              <span className="hidden sm:inline">Copy Invite Link</span>
-            </button>
           </div>
+
         </div>
       </header>
 
       {/* METRICS & OVERVIEW */}
-      <div className="mx-auto max-w-7xl px-6 mt-8">
+      {/* FIX 2: responsive container padding prevents overflow at 320px */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
         
         {/* GROWTH TRACKER */}
-        <div className="mb-8 rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-800 p-6 sm:p-8 text-white shadow-xl">
+        {/* FIX 6: p-5 md:p-8 reduces hero padding on mobile; overflow-hidden contains content */}
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-blue-700 to-indigo-800 p-5 md:p-8 text-white shadow-xl overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest bg-blue-500/30 px-3 py-1 rounded-full border border-blue-400/20">
@@ -432,11 +453,12 @@ export default function AmbassadorDashboard() {
               </p>
             </div>
             
-            <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-4 border border-white/10 backdrop-blur-sm self-start md:self-center">
-              <FaRoute className="text-2xl text-blue-300" />
-              <div>
+            {/* FIX 6: w-full on mobile prevents box from pushing past viewport */}
+            <div className="flex items-center gap-4 bg-white/10 rounded-2xl p-4 border border-white/10 backdrop-blur-sm w-full md:w-auto md:self-center shrink-0">
+              <FaRoute className="text-2xl text-blue-300 shrink-0" />
+              <div className="min-w-0">
                 <p className="text-xs text-blue-200">Promotion Progress</p>
-                <p className="text-sm font-bold mt-0.5">
+                <p className="text-sm font-bold mt-0.5 truncate">
                   {stats && stats.metrics.bookingsCount >= 50 ? 'Regional Manager Eligible' : `${stats?.metrics.bookingsCount || 0} / 50 Referral Bookings`}
                 </p>
               </div>
@@ -445,20 +467,23 @@ export default function AmbassadorDashboard() {
         </div>
 
         {/* TABS */}
-        <div className="flex border-b border-slate-200 overflow-x-auto gap-6 mb-8 scrollbar-hide">
-          {(['overview', 'bookings', 'leaderboard', 'marketing', 'support'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-4 text-sm font-bold capitalize border-b-2 whitespace-nowrap transition-all ${
-                activeTab === tab 
-                  ? 'border-blue-600 text-blue-600 font-extrabold' 
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* FIX 3: scrollable tabs — outer overflow-x-auto, inner w-max so tabs never shrink */}
+        <div className="border-b border-slate-200 overflow-x-auto scrollbar-hide mb-8">
+          <div className="flex w-max gap-6">
+            {(['overview', 'bookings', 'leaderboard', 'marketing', 'support'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`pb-4 text-sm font-bold capitalize border-b-2 whitespace-nowrap transition-all ${
+                  activeTab === tab 
+                    ? 'border-blue-600 text-blue-600 font-extrabold' 
+                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* TAB CONTENTS */}
@@ -544,9 +569,10 @@ export default function AmbassadorDashboard() {
 
                   <div>
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Referral URL</label>
-                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3">
-                      <span className="text-xs text-slate-600 truncate max-w-[180px]">{referralUrl}</span>
-                      <button onClick={handleCopyLink} className="text-blue-600 hover:text-blue-800 p-1" title="Copy URL">
+                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 gap-2">
+                      {/* FIX: min-w-0 flex-1 for responsive truncation instead of fixed max-w-[180px] */}
+                      <span className="text-xs text-slate-600 truncate min-w-0 flex-1">{referralUrl}</span>
+                      <button onClick={handleCopyLink} className="text-blue-600 hover:text-blue-800 p-1 shrink-0" title="Copy URL">
                         <FaCopy />
                       </button>
                     </div>
@@ -883,9 +909,9 @@ export default function AmbassadorDashboard() {
                   <div className="text-center py-10 text-slate-400">Loading performers...</div>
                 ) : (
                   leaderboard.map((item) => (
-                    <div key={item.rank} className="flex items-center justify-between p-6 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <span className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black border ${
+                    <div key={item.rank} className="flex items-center justify-between p-4 sm:p-6 hover:bg-slate-50 transition-colors gap-3">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black border ${
                           item.rank === 1 ? 'bg-amber-100 text-amber-700 border-amber-200' :
                           item.rank === 2 ? 'bg-slate-100 text-slate-600 border-slate-200' :
                           item.rank === 3 ? 'bg-orange-100 text-orange-700 border-orange-200' :
@@ -894,15 +920,15 @@ export default function AmbassadorDashboard() {
                           {item.rank}
                         </span>
                         
-                        <div>
-                          <p className="font-bold text-slate-900">{item.name}</p>
-                          <p className="text-xs text-slate-500">{item.university}</p>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 truncate">{item.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{item.university}</p>
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-right shrink-0">
                         <p className="font-black text-slate-900 text-sm">Score: {item.score || 0}</p>
-                        <p className="text-[10px] text-slate-500 font-bold">
+                        <p className="text-[10px] text-slate-500 font-bold whitespace-nowrap">
                           {item.bookingsCount} bookings • {item.referralsCount} signups
                         </p>
                       </div>
@@ -947,32 +973,39 @@ export default function AmbassadorDashboard() {
                 <p className="text-xs text-slate-500 mt-1">Professional promo graphics & posters tailored for your campus channels.</p>
               </div>
 
-              {/* CATEGORY SELECTOR */}
-              <div className="flex overflow-x-auto whitespace-nowrap gap-1.5 scrollbar-hide py-1 bg-slate-50 p-1.5 rounded-xl border border-slate-100 self-start sm:self-center">
-                {[
-                  { id: 'all', name: 'All' },
-                  { id: 'social_media', name: 'Social Media' },
-                  { id: 'printable', name: 'Printable' },
-                  { id: 'videos', name: 'Videos' },
-                  { id: 'brand', name: 'Brand' },
-                  { id: 'training', name: 'Training' }
-                ].map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      selectedCategory === cat.id
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+              {/* Category chips
+                  Root cause: outer scrollable div had no explicit width, so on mobile inside
+                  a flex-col parent it collapsed to content width causing overflow past card edge.
+                  Fix: w-full on the scroll wrapper gives it a defined boundary to scroll within.
+              */}
+              <div className="w-full overflow-x-auto scrollbar-hide py-1">
+                <div className="flex w-max gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
+                  {[
+                    { id: 'all', name: 'All' },
+                    { id: 'social_media', name: 'Social Media' },
+                    { id: 'printable', name: 'Printable' },
+                    { id: 'videos', name: 'Videos' },
+                    { id: 'brand', name: 'Brand' },
+                    { id: 'training', name: 'Training' }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                        selectedCategory === cat.id
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Asset cards: 1-col mobile, 2-col sm, 3-col lg */}
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {marketingAssets.filter(asset => selectedCategory === 'all' || asset.category === selectedCategory).length === 0 ? (
                 <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-12 text-center text-slate-400">
                   <FaFolderOpen className="mx-auto h-12 w-12 text-slate-300 mb-3" />
@@ -983,7 +1016,7 @@ export default function AmbassadorDashboard() {
                 marketingAssets
                   .filter(asset => selectedCategory === 'all' || asset.category === selectedCategory)
                   .map((asset) => (
-                    <div key={asset._id} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 hover:border-blue-200 transition-colors flex flex-col justify-between">
+                    <div key={asset._id} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 sm:p-5 hover:border-blue-200 transition-colors flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
@@ -1000,18 +1033,19 @@ export default function AmbassadorDashboard() {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 mt-6">
+                      {/* Buttons: equal-width flex row, never overflow */}
+                      <div className="flex gap-2 mt-5">
                         <button 
                           onClick={() => handlePreviewAsset(asset)}
-                          className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-xs"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                         >
-                          <FaEye className="text-slate-400" /> Preview
+                          <FaEye className="text-slate-400 shrink-0" /> Preview
                         </button>
                         <button 
                           onClick={() => handleDownloadAsset(asset)}
-                          className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-xs"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors"
                         >
-                          <FaDownload /> Download
+                          <FaDownload className="shrink-0" /> Download
                         </button>
                       </div>
                     </div>
@@ -1101,8 +1135,9 @@ export default function AmbassadorDashboard() {
 
       {/* WITHDRAW PAYOUT MODAL */}
       {isPayoutModalOpen && stats && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative">
+        // FIX: bottom-sheet on mobile (items-end + rounded-t-3xl), centered modal on sm+
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-md shadow-2xl relative max-h-[95vh] overflow-y-auto">
             <h3 className="text-xl font-black text-slate-900 mb-2">Request Payout</h3>
             <p className="text-xs text-slate-500 mb-6">
               Minimum payout is <span className="font-bold">{formatMoney(stats.metrics.minPayout ?? 100)}</span>. Your Available Balance is <span className="font-bold text-blue-600">{formatMoney(stats.metrics.availableBalance)}</span>.
@@ -1247,7 +1282,7 @@ export default function AmbassadorDashboard() {
       {/* STUDENT PREVIEW MODAL */}
       {previewAsset && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-2xl rounded-3xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150 max-h-[95vh] overflow-y-auto">
             <button 
               onClick={() => setPreviewAsset(null)}
               className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition z-10 bg-white/85"
@@ -1294,14 +1329,14 @@ export default function AmbassadorDashboard() {
               )}
             </div>
 
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-4">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-4 border-t border-slate-100 mt-4">
               <span className="text-xs text-slate-400 font-bold">
                 Size: {(previewAsset.fileSize / (1024 * 1024)).toFixed(1)} MB
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPreviewAsset(null)}
-                  className="border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold transition"
+                  className="flex-1 sm:flex-none border border-slate-200 text-slate-600 hover:bg-slate-50 px-4 py-2 rounded-xl text-xs font-bold transition"
                 >
                   Close Preview
                 </button>
@@ -1310,9 +1345,9 @@ export default function AmbassadorDashboard() {
                     handleDownloadAsset(previewAsset);
                     setPreviewAsset(null);
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                  className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
                 >
-                  <FaDownload />
+                  <FaDownload className="shrink-0" />
                   <span>Download Now</span>
                 </button>
               </div>

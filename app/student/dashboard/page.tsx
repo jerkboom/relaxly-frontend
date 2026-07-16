@@ -26,7 +26,8 @@ import {
   FaChevronRight,
   FaSpinner,
   FaCloudUploadAlt,
-  FaTimes
+  FaTimes,
+  FaBell
 } from 'react-icons/fa';
 
 import { useNav } from '../layout';
@@ -236,6 +237,60 @@ export default function StudentDashboardPage() {
     return () => window.clearTimeout(timer);
   }, [fetchDashboard]);
 
+  // ── Notification bell state ──────────────────────────────────────────────
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      if (!token) return;
+      const res = await API.get('/notifications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const envelope = res.data.data || res.data || {};
+      const list = envelope.notifications || (Array.isArray(envelope) ? envelope : []);
+      setNotifications(list);
+      setUnreadCount(
+        envelope.unreadCount !== undefined
+          ? envelope.unreadCount
+          : list.filter((n: any) => !n.read).length
+      );
+    } catch {
+      // silent
+    }
+  }, [token]);
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await API.patch(`/notifications/${id}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch {
+      // silent
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await API.patch('/notifications/read-all', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+      toast.success('All notifications marked as read');
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const handleLogout = () => {
     logout();
     router.replace('/login');
@@ -244,47 +299,120 @@ export default function StudentDashboardPage() {
   return (
     <main className="min-h-screen bg-slate-100 pb-20">
 
-      {/* HEADER */}
+      {/* ── HEADER ────────────────────────────────────────────────────────────── */}
+      {/*
+        Layout: single flex row, two groups.
+        Left  — min-w-0 flex-1  → menu button + title (title truncates, never pushes right group)
+        Right — shrink-0        → logout button + notification bell (both h-10 w-10)
+        Bell is LAST in the flex row so its absolute dropdown cannot overlap logout.
+      */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 py-4">
 
-          <div className="flex items-center gap-4">
+          {/* LEFT — menu + title */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <button
               onClick={openSidebar}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 transition hover:bg-slate-100 lg:hidden"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 transition hover:bg-slate-100 lg:hidden"
             >
-              <FaBars className="text-xl" />
+              <FaBars className="text-lg" />
             </button>
 
-            <div>
-              <h1 className="text-2xl sm:text-4xl font-black text-slate-900">
+            <div className="min-w-0">
+              <h1 className="truncate text-xl sm:text-3xl font-black text-slate-900 leading-tight">
                 Student Dashboard
               </h1>
-
-              <p className="mt-1 hidden text-sm sm:block text-slate-600">
+              <p className="mt-0.5 hidden text-xs sm:block text-slate-500 font-medium">
                 Welcome back to your hostel portal
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-              <Link
-                href="/hostels"
-                className="hidden md:flex rounded-2xl bg-blue-600 px-6 py-3 font-bold text-white transition hover:bg-blue-700"
-              >
-                Browse Hostels
-              </Link>
+          {/* RIGHT — logout then bell (bell is last so dropdown falls below it, away from logout) */}
+          <div className="flex items-center gap-2 shrink-0">
 
+            {/* Browse Hostels — hidden on small screens */}
+            <Link
+              href="/hostels"
+              className="hidden md:flex rounded-2xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700"
+            >
+              Browse Hostels
+            </Link>
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border-2 border-slate-100 bg-white text-red-600 transition hover:bg-red-50 hover:border-red-100 sm:w-auto sm:px-4 sm:gap-2"
+              title="Logout"
+            >
+              <FaSignOutAlt className="shrink-0" />
+              <span className="hidden sm:inline text-sm font-bold">Logout</span>
+            </button>
+
+            {/* Notification bell — rightmost so dropdown never overlaps logout */}
+            <div className="relative">
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 rounded-2xl border-2 border-slate-100 bg-white px-6 py-3 font-bold text-red-600 transition hover:bg-red-50 hover:border-red-100"
+                onClick={() => setShowNotifDropdown(v => !v)}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-slate-600 transition hover:bg-slate-100"
+                title="Notifications"
               >
-                <FaSignOutAlt />
-                <span className="hidden sm:inline">Logout</span>
+                <FaBell />
+                {/* Unread badge — scoped to this button's own stacking context */}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-white pointer-events-none animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
+
+              {/* Dropdown — right-0 top-full so it opens below the bell, not over logout */}
+              {showNotifDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-slate-100 bg-white p-4 shadow-xl ring-1 ring-black/5 z-50">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-[10px] font-bold text-blue-600 hover:underline"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic text-center py-6">No notifications yet.</p>
+                    ) : (
+                      notifications.map((notif: any) => (
+                        <div
+                          key={notif._id}
+                          onClick={() => handleMarkAsRead(notif._id)}
+                          className={`p-2.5 rounded-xl border text-xs cursor-pointer transition ${
+                            notif.read
+                              ? 'bg-white border-slate-100 text-slate-600'
+                              : 'bg-blue-50/50 border-blue-100 text-slate-800'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <strong className="font-bold truncate" title={notif.title}>{notif.title}</strong>
+                            {!notif.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600 mt-1" />}
+                          </div>
+                          <p className="text-slate-500 mt-1 text-[11px] leading-relaxed">{notif.message}</p>
+                          <span className="text-[9px] text-slate-400 font-semibold block mt-1">
+                            {new Date(notif.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
           </div>
-        </header>
+        </div>
+      </header>
 
         {/* CONTENT */}
         <div className="mx-auto max-w-7xl px-6 py-10">

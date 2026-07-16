@@ -21,7 +21,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const closeSidebar = () => setIsSidebarOpen(false);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRole="student">
       <NavContext.Provider value={{ openSidebar }}>
         <div className="min-h-screen bg-slate-50">
           <MobileSidebar isOpen={isSidebarOpen} onClose={closeSidebar} />

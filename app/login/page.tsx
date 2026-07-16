@@ -4,7 +4,7 @@ import { useState, Suspense } from 'react';
 
 import Link from 'next/link';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import toast from 'react-hot-toast';
 
@@ -21,8 +21,6 @@ import { getErrorMessage } from '../../src/utils/errorUtils';
 
 function LoginContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect');
 
   const { setAuth } =
     useAuthStore();
@@ -109,13 +107,21 @@ function LoginContent() {
         } else if (status === 'suspended') {
           router.replace('/suspended');
         } else {
-          router.replace(redirect || '/owner/dashboard');
+          router.replace('/owner/dashboard');
         }
         return;
       }
 
-      // 3. Student dashboard (must be verified to reach here)
-      router.replace(redirect || '/');
+      // 3. Student and approved ambassador dashboards
+      if (
+        user.isAmbassador === true &&
+        user.ambassadorStatus === 'approved'
+      ) {
+        router.replace('/student/ambassador');
+        return;
+      }
+
+      router.replace('/student/dashboard');
     } catch (error: any) {
       if (error.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
         setUnverifiedEmail(formData.email);
