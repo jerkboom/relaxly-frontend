@@ -491,7 +491,7 @@ export default function AmbassadorDashboard() {
           <div className="space-y-8 animate-fade-in">
             {/* STAT CARDS */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-              <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 text-xl mb-4">
                   <FaUsers />
                 </div>
@@ -505,7 +505,7 @@ export default function AmbassadorDashboard() {
                     <FaMoneyBillWave />
                   </div>
                   <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Available Balance</p>
-                  <p className="text-3xl font-black mt-1 text-slate-900 truncate max-w-full" title={formatMoney(stats.metrics.availableBalance)}>
+                  <p className="mt-1 break-words text-2xl font-black leading-tight text-slate-900 sm:text-3xl lg:text-4xl" title={formatMoney(stats.metrics.availableBalance)}>
                     {formatMoney(stats.metrics.availableBalance)}
                   </p>
                 </div>
@@ -518,7 +518,7 @@ export default function AmbassadorDashboard() {
                 </button>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 text-xl mb-4">
                   <FaHome />
                 </div>
@@ -526,22 +526,22 @@ export default function AmbassadorDashboard() {
                 <p className="text-3xl font-black mt-1 text-slate-900">{stats.metrics.bookingsCount}</p>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600 text-xl mb-4">
                   <FaMoneyBillWave />
                 </div>
                 <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Pending Earnings</p>
-                <p className="text-3xl font-black mt-1 text-slate-900 truncate max-w-full" title={formatMoney(stats.metrics.pendingEarnings)}>
+                <p className="mt-1 break-words text-2xl font-black leading-tight text-slate-900 sm:text-3xl lg:text-4xl" title={formatMoney(stats.metrics.pendingEarnings)}>
                   {formatMoney(stats.metrics.pendingEarnings)}
                 </p>
               </div>
 
-              <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
+              <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm border border-slate-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50 text-purple-600 text-xl mb-4">
                   <FaAward />
                 </div>
                 <p className="text-xs font-bold uppercase text-slate-400 tracking-wider">Paid Earnings</p>
-                <p className="text-3xl font-black mt-1 text-slate-900 truncate max-w-full" title={formatMoney(stats.metrics.paidEarnings)}>
+                <p className="mt-1 break-words text-2xl font-black leading-tight text-slate-900 sm:text-3xl lg:text-4xl" title={formatMoney(stats.metrics.paidEarnings)}>
                   {formatMoney(stats.metrics.paidEarnings)}
                 </p>
               </div>
@@ -569,9 +569,14 @@ export default function AmbassadorDashboard() {
 
                   <div>
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Referral URL</label>
-                    <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3 gap-2">
-                      {/* FIX: min-w-0 flex-1 for responsive truncation instead of fixed max-w-[180px] */}
-                      <span className="text-xs text-slate-600 truncate min-w-0 flex-1">{referralUrl}</span>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                      <input
+                        aria-label="Referral URL"
+                        readOnly
+                        value={referralUrl}
+                        className="min-w-0 flex-1 truncate bg-transparent text-xs text-slate-600 outline-none focus:overflow-x-auto focus:text-clip"
+                        onFocus={(event) => event.currentTarget.select()}
+                      />
                       <button onClick={handleCopyLink} className="text-blue-600 hover:text-blue-800 p-1 shrink-0" title="Copy URL">
                         <FaCopy />
                       </button>
@@ -587,7 +592,7 @@ export default function AmbassadorDashboard() {
                   <p className="text-xs text-slate-500">Quickly broadcast your referral link to your university network.</p>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2 mt-4">
+                <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
                   <a
                     href={`https://api.whatsapp.com/send?text=${encodeURIComponent("Hey! Use my link to sign up on Relaxly to book the best student hostels near campus: " + getReferralUrl(referralCode, 'whatsapp'))}`}
                     target="_blank"
@@ -623,14 +628,13 @@ export default function AmbassadorDashboard() {
                   >
                     <FaTwitter className="text-sm" /> Twitter
                   </a>
+                  <a
+                    href={`mailto:?subject=${encodeURIComponent("Book the best student hostels on Relaxly")}&body=${encodeURIComponent("Hey, check out Relaxly to book the best student hostels! Here is my invite link: " + getReferralUrl(referralCode, 'email'))}`}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-xs font-bold transition"
+                  >
+                    <FaEnvelope className="text-sm" /> Email
+                  </a>
                 </div>
-
-                <a
-                  href={`mailto:?subject=${encodeURIComponent("Book the best student hostels on Relaxly")}&body=${encodeURIComponent("Hey, check out Relaxly to book the best student hostels! Here is my invite link: " + getReferralUrl(referralCode, 'email'))}`}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 text-xs font-bold transition mt-2 w-full"
-                >
-                  <FaEnvelope className="text-sm" /> Share via Email
-                </a>
               </div>
 
               {/* QR Code and Badges */}
@@ -640,7 +644,7 @@ export default function AmbassadorDashboard() {
                   <p className="text-xs text-slate-500">Let students scan your code to sign up directly via your link.</p>
                 </div>
                 
-                <div className="flex items-center gap-6 mt-4">
+                <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
                   <div className="bg-slate-100 border border-slate-200 rounded-2xl h-20 w-20 flex items-center justify-center shrink-0">
                     <FaQrcode className="text-3xl text-slate-400" />
                   </div>
@@ -669,7 +673,7 @@ export default function AmbassadorDashboard() {
                   <p className="text-xs text-slate-500">Track user progress from click to booking.</p>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6 pb-6">
                   {/* Step 1: Link Clicks */}
                   <div>
                     <div className="flex justify-between text-xs font-bold text-slate-700 mb-1">

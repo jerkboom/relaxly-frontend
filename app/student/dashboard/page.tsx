@@ -63,11 +63,37 @@ interface DashboardData {
 
     bookingStatus: string;
 
-    totalPaid: number;
+    totalAmount?: number | string | null;
+    amountPaid?: number | string | null;
+    payment?: { amount?: number | string | null } | null;
+    totalPaid?: number | string | null;
+    amount?: number | string | null;
 
-    checkInDate: string;
+    checkInDate?: string | null;
   }[];
 }
+
+const getBookingAmount = (booking: DashboardData['recentBookings'][number]) =>
+  Number(
+    booking.totalAmount ??
+      booking.amountPaid ??
+      booking.payment?.amount ??
+      booking.totalPaid ??
+      booking.amount ??
+      0
+  ).toLocaleString('en-GH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatCheckInDate = (checkInDate?: string | null) => {
+  if (!checkInDate) return 'Not scheduled';
+
+  const date = new Date(checkInDate);
+  return Number.isNaN(date.getTime())
+    ? 'Not scheduled'
+    : date.toLocaleDateString();
+};
 
 import { useSettingsStore } from '../../../src/store/settingsStore';
 
@@ -721,10 +747,10 @@ export default function StudentDashboardPage() {
                         className="group overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-slate-100 bg-slate-50 transition-all hover:border-blue-100 hover:bg-white hover:shadow-lg"
                       >
 
-                        <div className="flex flex-col gap-6 sm:gap-8 p-5 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 flex-col gap-5 p-5 sm:gap-8 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
 
                           {/* LEFT */}
-                          <div className="flex flex-col sm:flex-row items-start gap-5 sm:gap-6">
+                          <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:gap-6 lg:flex-1">
 
                             {/* IMAGE */}
                             <div className="h-20 w-20 sm:h-28 sm:w-28 overflow-hidden rounded-2xl sm:rounded-3xl bg-slate-200 shrink-0">
@@ -769,7 +795,7 @@ export default function StudentDashboardPage() {
                                 </span>
                               </div>
 
-                              <h3 className="text-xl sm:text-3xl font-black text-slate-900 truncate">
+                              <h3 className="break-words text-2xl font-black leading-tight text-slate-900 sm:text-3xl">
                                 {
                                   booking.hostel
                                     ?.name
@@ -780,7 +806,7 @@ export default function StudentDashboardPage() {
 
                                 <FaMapMarkerAlt className="text-blue-500 shrink-0" />
 
-                                <span className="font-medium truncate">
+                                <span className="min-w-0 break-words font-medium">
                                   {
                                     typeof booking.hostel?.location === 'object'
                                       ? `${booking.hostel.location.city}, ${booking.hostel.location.region}`
@@ -824,43 +850,38 @@ export default function StudentDashboardPage() {
                           </div>
 
                           {/* RIGHT */}
-                          <div className="flex flex-col items-start gap-5 sm:gap-6 lg:items-end">
+                          <div className="flex w-full flex-col items-start gap-4 sm:gap-6 lg:w-auto lg:items-end">
 
                             {/* PRICE */}
-                            <div className="text-left lg:text-right">
+                            <div className="w-full text-left lg:w-auto lg:text-right">
 
                               <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">
                                 Total Amount
                               </p>
 
                               <h2 className="mt-0.5 sm:mt-1 text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900">
-                                GHS{' '}
-                                {
-                                  booking.totalPaid
-                                }
+                                GHS {getBookingAmount(booking)}
                               </h2>
 
                               <p className="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-slate-500">
                                 Check-in:{' '}
-                                {new Date(
-                                  booking.checkInDate
-                                ).toLocaleDateString()}
+                                {formatCheckInDate(booking.checkInDate)}
                               </p>
                             </div>
 
                             {/* BUTTONS */}
-                            <div className="flex flex-wrap gap-2 sm:gap-3">
+                            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-3">
 
                               <Link
                                 href="/student/bookings"
-                                className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                                className="flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-xs font-black text-slate-700 transition hover:bg-slate-100 sm:w-auto sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
                               >
                                 View Booking
                               </Link>
 
                               <Link
                                 href={`/hostels/${booking.hostel?._id}`}
-                                className="rounded-xl sm:rounded-2xl bg-blue-600 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-black text-white transition hover:bg-blue-700"
+                                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-3 py-2.5 text-center text-xs font-black text-white transition hover:bg-blue-700 sm:w-auto sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
                               >
                                 Hostel Details
                               </Link>
@@ -868,7 +889,7 @@ export default function StudentDashboardPage() {
                               {isPaid && (
                                 <Link
                                   href={`/payments/receipt/${booking._id}`}
-                                  className="rounded-xl sm:rounded-2xl bg-emerald-600 px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-black text-white transition hover:bg-emerald-700"
+                                  className="col-span-2 flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-center text-xs font-black text-white transition hover:bg-emerald-700 sm:w-auto sm:rounded-2xl sm:px-5 sm:py-3 sm:text-sm"
                                 >
                                   <div className="flex items-center gap-2">
                                     <FaReceipt />

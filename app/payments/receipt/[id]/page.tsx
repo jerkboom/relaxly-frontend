@@ -26,7 +26,11 @@ import {
 interface Receipt {
   _id: string;
 
-  totalPaid: number;
+  totalPaid?: number | string | null;
+  totalAmount?: number | string | null;
+  amountPaid?: number | string | null;
+  amount?: number | string | null;
+  payment?: { amount?: number | string | null } | null;
 
   paymentReference?: string;
 
@@ -55,7 +59,25 @@ interface Receipt {
       phone?: string;
     };
   };
+
+  bookingCode?: string;
 }
+
+const formatAmount = (receipt: Receipt) => {
+  const amount = Number(
+    receipt.totalAmount ??
+      receipt.amountPaid ??
+      receipt.payment?.amount ??
+      receipt.totalPaid ??
+      receipt.amount ??
+      0
+  );
+
+  return (Number.isFinite(amount) ? amount : 0).toLocaleString('en-GH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -126,11 +148,11 @@ export default function ReceiptPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-10">
-      <div className="mx-auto max-w-4xl rounded-[3rem] bg-white p-10 shadow-xl">
+    <main className="min-h-screen w-full overflow-x-hidden bg-slate-100 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-4xl rounded-3xl bg-white p-4 shadow-xl sm:rounded-[3rem] sm:p-10">
 
         {/* TOP */}
-        <div className="mb-10 flex items-center justify-between">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 sm:mb-10">
           
           {/* FIXED BACK BUTTON */}
           <button
@@ -146,7 +168,7 @@ export default function ReceiptPage() {
                 );
               }
             }}
-            className="flex items-center gap-3 rounded-2xl bg-slate-100 px-6 py-4 text-lg font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95"
+            className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-100 px-3 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 sm:flex-none sm:gap-3 sm:px-6 sm:py-4 sm:text-lg"
           >
             <FaArrowLeft />
             Back
@@ -156,7 +178,7 @@ export default function ReceiptPage() {
             onClick={() =>
               window.print()
             }
-            className="flex items-center gap-3 rounded-2xl bg-blue-600 px-6 py-4 text-lg font-bold text-white transition hover:bg-blue-700 active:scale-95"
+            className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-700 active:scale-95 sm:flex-none sm:gap-3 sm:px-6 sm:py-4 sm:text-lg"
           >
             <FaDownload />
             Download
@@ -164,44 +186,44 @@ export default function ReceiptPage() {
         </div>
 
         {/* SUCCESS */}
-        <div className="mb-14 text-center">
-          <div className="mx-auto mb-6 flex h-28 w-28 items-center justify-center rounded-full bg-emerald-100 text-5xl text-emerald-600">
+        <div className="mb-10 text-center sm:mb-14">
+          <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl text-emerald-600 sm:mb-6 sm:h-28 sm:w-28 sm:text-5xl">
             <FaCheckCircle />
           </div>
 
-          <h1 className="text-6xl font-black text-slate-900">
+          <h1 className="break-words text-3xl font-black leading-tight text-slate-900 sm:text-6xl">
             Payment Receipt
           </h1>
 
-          <p className="mt-4 text-lg font-bold text-slate-400">
+          <p className="mt-3 text-sm font-bold text-slate-400 sm:mt-4 sm:text-lg">
             Payment completed successfully
           </p>
         </div>
 
         {/* RECEIPT CARD */}
-        <div className="rounded-[2.5rem] border border-slate-200 p-10">
+        <div className="w-full rounded-3xl border border-slate-200 p-4 sm:rounded-[2.5rem] sm:p-10">
 
           {/* HOSTEL HEADER */}
-          <div className="mb-10 flex items-center gap-5">
-            <div className="rounded-3xl bg-blue-100 p-5 text-3xl text-blue-600">
+          <div className="mb-8 flex min-w-0 flex-col items-start gap-4 sm:mb-10 sm:flex-row sm:items-center sm:gap-5">
+            <div className="shrink-0 rounded-3xl bg-blue-100 p-4 text-2xl text-blue-600 sm:p-5 sm:text-3xl">
               <FaReceipt />
             </div>
 
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-widest text-slate-400">
                 Hostel
               </p>
 
-              <h2 className="text-4xl font-black text-slate-900">
+              <h2 className="break-words text-2xl font-black leading-tight text-slate-900 sm:text-4xl">
                 {
                   receipt.hostel?.name || 'N/A'
                 }
               </h2>
 
-              <div className="mt-2 flex items-center gap-2 text-slate-400">
-                <FaMapMarkerAlt />
+              <div className="mt-2 flex min-w-0 items-start gap-2 text-slate-400">
+                <FaMapMarkerAlt className="mt-1 shrink-0" />
 
-                <span className="font-bold">
+                <span className="break-words font-bold">
                   {
                     typeof receipt.hostel?.location === 'object'
                       ? `${receipt.hostel.location.city}, ${receipt.hostel.location.region}`
@@ -220,7 +242,7 @@ export default function ReceiptPage() {
                 Room Type
               </p>
 
-              <p className="mt-2 text-2xl font-black text-slate-900">
+              <p className="mt-2 break-words text-xl font-black text-slate-900 sm:text-2xl">
                 {
                   receipt.room?.roomType || 'N/A'
                 }
@@ -232,11 +254,8 @@ export default function ReceiptPage() {
                 Amount Paid
               </p>
 
-              <p className="mt-2 text-4xl font-black text-blue-600">
-                GHS{' '}
-                {
-                  receipt.totalPaid || (receipt as any).amount || 0
-                }
+              <p className="mt-2 break-words text-2xl font-black text-blue-600 sm:text-4xl">
+                GHS {formatAmount(receipt)}
               </p>
             </div>
 
@@ -245,7 +264,7 @@ export default function ReceiptPage() {
                 Payment Status
               </p>
 
-              <p className="mt-2 text-xl font-black text-emerald-600 uppercase">
+              <p className="mt-2 break-words text-lg font-black text-emerald-600 uppercase sm:text-xl">
                 {
                   receipt.paymentStatus || 'Pending'
                 }
@@ -271,7 +290,7 @@ export default function ReceiptPage() {
                 Student
               </p>
 
-              <p className="mt-2 text-xl font-black text-slate-900">
+              <p className="mt-2 break-words text-lg font-black text-slate-900 sm:text-xl">
                 {
                   receipt.student?.name || 'N/A'
                 }
@@ -283,7 +302,7 @@ export default function ReceiptPage() {
                 Date
               </p>
 
-              <p className="mt-2 text-xl font-black text-slate-900">
+              <p className="mt-2 break-words text-lg font-black text-slate-900 sm:text-xl">
                 {formatDate(receipt.createdAt)}
               </p>
             </div>
@@ -298,7 +317,7 @@ export default function ReceiptPage() {
                 </p>
               </div>
 
-              <p className="text-lg font-black text-slate-900">
+              <p className="break-words text-base font-black text-slate-900 sm:text-lg">
                 {receipt.hostel
                   ?.owner?.phone ||
                   'Not available'}
@@ -334,7 +353,7 @@ export default function ReceiptPage() {
                     : '/hostels'
                 )
               }
-              className="w-full rounded-3xl bg-blue-600 px-8 py-5 text-xl font-black text-white transition hover:bg-blue-700 active:scale-95"
+              className="w-full rounded-3xl bg-blue-600 px-5 py-4 text-lg font-black text-white transition hover:bg-blue-700 active:scale-95 sm:px-8 sm:py-5 sm:text-xl"
             >
               View Hostel
             </button>
